@@ -133,62 +133,29 @@ private:
 		double rightStickY = controller.GetRawAxis(ARMDIRECTION);
 		double moveDirection = controller.GetRawAxis(MOVE);
 		double rotateAmount = controller.GetRawAxis(ROTATE);
+		double armMovement = controller.GetRawAxis(ARMDIRECTION);
 
 #if DEBUG
 		std::string bDirection = std::to_string(moveDirection);
 		std::string bRotate = std::to_string(rotateAmount);
+		std::string bArm = std::to_string(armMovement);
 		SmartDashboard::PutString("DB/String 0", ("Dir before: " + bDirection));
 		SmartDashboard::PutString("DB/String 1", ("Rot before: " + bRotate));
+		SmartDashboard::PutString("DB/String 2", ("Arm before: " + bArm));
 #endif
 
-		if(fabs(moveDirection) < DEADZONE){
-			moveDirection = 0;
-		} else {
-			if(moveDirection < 0){
-				moveDirection += DEADZONE;
-			} else {
-				moveDirection -= DEADZONE;
-			}
-			moveDirection /= (1 - DEADZONE);
-		}
-
-		if(fabs(rotateAmount) < DEADZONE){
-			rotateAmount = 0;
-		} else {
-			if(rotateAmount < 0){
-				rotateAmount += DEADZONE;
-			} else {
-				rotateAmount -= DEADZONE;
-			}
-			rotateAmount /= (1 - DEADZONE);
-		}
+		moveDirection = createDeadzone(moveDirection);
+		rotateAmount = createDeadzone(rotateAmount);
+		armMovement = createDeadzone(armMovement);
 
 #if DEBUG
 		std::string aDirection = std::to_string(moveDirection);
 		std::string aRotate = std::to_string(rotateAmount);
-		SmartDashboard::PutString("DB/String 2", ("Dir after: " + aDirection));
-		SmartDashboard::PutString("DB/String 3", ("Rot after: " + aRotate));
+		std::string aArm = std::to_string(armMovement);
+		SmartDashboard::PutString("DB/String 3", ("Dir after: " + aDirection));
+		SmartDashboard::PutString("DB/String 4", ("Rot after: " + aRotate));
+		SmartDashboard::PutString("DB/String 5", ("Arm after: " + aArm));
 #endif
-
-		if(rightTrigger == 1){
-			//TODO: have shootBall method
-		}
-
-		if(rightStickY < 0.2){
-			//TODO: have moveArmUp method
-		} else if (rightStickY > -0.2){
-			//TODO: have moveArmDown method
-		}
-
-
-
-		//moveDirection = abs(moveDirection) < 0.8 ? 0 : (moveDirection - 0.8) / 0.2;
-		//rotateAmount = abs(rotateAmount) < 0.8 ? 0 : (rotateAmount - 0.8) / 0.2;
-
-		/*SmartDashboard testDashboard;
-
-		std::string pointToVal = (std::string) moveDirection;
-		std::string output = "DB/String Val: ";*/
 
 		myRobot.ArcadeDrive(moveDirection, rotateAmount, false);
 #endif
@@ -198,6 +165,20 @@ private:
 
 	void TestPeriodic() {
 		lw->Run();
+	}
+
+	double createDeadzone(double amount, double deadzone=DEADZONE){
+		if(fabs(amount) < deadzone){
+			amount = 0;
+		} else {
+			if(amount < 0){
+				amount += deadzone;
+			} else {
+				amount -= deadzone;
+			}
+			amount /= (1 - deadzone);
+		}
+		return amount;
 	}
 };
 
