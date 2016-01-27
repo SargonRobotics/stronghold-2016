@@ -1,7 +1,10 @@
 #include "WPILib.h"
+#include <cstdlib>
+#include <sstream>
 
 #define ISJOYSTICK 0
-#define DEADZONETEST 1
+#define DEBUG 1
+#define DEADZONE 0.25
 
 class Robot: public IterativeRobot {
 #if ISJOYSTICK
@@ -131,26 +134,40 @@ private:
 		double moveDirection = controller.GetRawAxis(MOVE);
 		double rotateAmount = controller.GetRawAxis(ROTATE);
 
-#if DEADZONETEST
-		if(abs(moveDirection) < 0.2){
+#if DEBUG
+		std::string bDirection = std::to_string(moveDirection);
+		std::string bRotate = std::to_string(rotateAmount);
+		SmartDashboard::PutString("DB/String 0", ("Dir before: " + bDirection));
+		SmartDashboard::PutString("DB/String 1", ("Rot before: " + bRotate));
+#endif
+
+		if(fabs(moveDirection) < DEADZONE){
 			moveDirection = 0;
 		} else {
 			if(moveDirection < 0){
-				moveDirection += 0.2;
+				moveDirection += DEADZONE;
 			} else {
-				moveDirection -= 0.2;
+				moveDirection -= DEADZONE;
 			}
+			moveDirection /= (1 - DEADZONE);
 		}
 
-		if(abs(rotateAmount) < 0.2){
-				rotateAmount = 0;
-				} else {
-					if(rotateAmount < 0){
-						rotateAmount += 0.2;
-					} else {
-						rotateAmount -= 0.2;
-					}
-				}
+		if(fabs(rotateAmount) < DEADZONE){
+			rotateAmount = 0;
+		} else {
+			if(rotateAmount < 0){
+				rotateAmount += DEADZONE;
+			} else {
+				rotateAmount -= DEADZONE;
+			}
+			rotateAmount /= (1 - DEADZONE);
+		}
+
+#if DEBUG
+		std::string aDirection = std::to_string(moveDirection);
+		std::string aRotate = std::to_string(rotateAmount);
+		SmartDashboard::PutString("DB/String 2", ("Dir after: " + aDirection));
+		SmartDashboard::PutString("DB/String 3", ("Rot after: " + aRotate));
 #endif
 
 		if(rightTrigger == 1){
@@ -172,8 +189,6 @@ private:
 
 		std::string pointToVal = (std::string) moveDirection;
 		std::string output = "DB/String Val: ";*/
-
-		std::string dashData = testDashboard.GetString(output, pointToVal);
 
 		myRobot.ArcadeDrive(moveDirection, rotateAmount, false);
 #endif
