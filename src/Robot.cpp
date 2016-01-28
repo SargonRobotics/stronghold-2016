@@ -36,23 +36,28 @@ class Robot: public IterativeRobot {
 #endif
 
 	enum motors {
-		LEFTDRIVE = 0,
-		RIGHTDRIVE = 1,
-		LEFTARM = 2,
-		RIGHTARM = 3,
-		LEFTROLLERS = 4,
-		RIGHTROLLERS = 5
+		LEFTDRIVE = 0, RIGHTDRIVE = 1,
+		LEFTARM = 2, RIGHTARM = 3,
+		LEFTROLLERS = 4, RIGHTROLLERS = 5,
+	};
+
+	enum inputs {
+		LEFTPOTCHANNEL = 0, RIGHTPOTCHANNEL = 1
 	};
 
 //	enum limit_switches {
 //		MINARM = 0, LEFTARM = 1, RIGHTARM = 2
 //	};
 
+	AnalogInput rightArmPotInput;
+	AnalogInput leftArmPotInput;
 	RobotDrive myRobot; // robot drive system
 	Joystick controller; // only joystick
 	JoystickButton rollerButton;
 	Talon leftRollerMotor;
 	Talon rightRollerMotor;
+	Talon rightArmPotMotor;
+	Talon leftArmPotMotor;
 public:
 
 	Robot() :
@@ -60,7 +65,11 @@ public:
 			controller(MAINJOY),
 			rollerButton(&controller, SHOOTBALL),
 			leftRollerMotor(LEFTROLLERS),
-			rightRollerMotor(RIGHTROLLERS)
+			rightRollerMotor(RIGHTROLLERS),
+			rightArmPotInput(RIGHTPOTCHANNEL),
+			rightArmPotMotor(RIGHTARM),
+			leftArmPotInput(LEFTPOTCHANNEL),
+			leftArmPotMotor(LEFTARM)
 	{
 		myRobot.SetExpiration(0.1);
 		//myRobot.SetInvertedMotor()
@@ -79,6 +88,13 @@ private:
 		chooser->AddDefault(autoNameDefault, (void*) &autoNameDefault);
 		chooser->AddObject(autoNameCustom, (void*) &autoNameCustom);
 		SmartDashboard::PutData("Auto Modes", chooser);
+		CameraServer::GetInstance()->SetQuality(50);
+		std::shared_ptr<USBCamera> camera(new USBCamera ("cam0" , true));
+		//camera->SetExposureManual(50);
+		//camera->SetBrightness(50);
+		//camera->SetWhiteBalanceManual(0);
+		CameraServer::GetInstance()->StartAutomaticCapture(camera);
+
 	}
 
 	/**
@@ -148,13 +164,30 @@ private:
 		rotateAmount = createDeadzone(rotateAmount);
 		armMovement = createDeadzone(armMovement);
 
+		double rCurrentPosition = rightArmPotInput.GetAverageVoltage(); //get position value
+//		motorSpeed = (currentPosition - currentSetpoint)*pGain; //convert position error to speed
+//		rightArmPotMotor.Set(motorSpeed); //drive elevator motor
+
+		double lCurrentPosition = rightArmPotInput.GetAverageVoltage(); //get position value
+		//		motorSpeed = (currentPosition - currentSetpoint)*pGain; //convert position error to speed
+		//		rightArmPotMotor.Set(motorSpeed); //drive elevator motor
+
+		//TODO: See debug todo below.
+		//TODO: Test the input we get from arm potentiometers to make sense of them.
+		//TODO: Very cautiously give the motor an input and hope it doesn't break.
+		//TODO: Add error checking for if the position of the arms differs by too much.
+		//TODO: Add controls for moving the arms together.
+
 #if DEBUG
 		std::string aDirection = std::to_string(moveDirection);
 		std::string aRotate = std::to_string(rotateAmount);
 		std::string aArm = std::to_string(armMovement);
+		std::string aRightPos = std::to_string(rCurrentPosition);
+		//TODO: Add output for other arm potentiometer
 		SmartDashboard::PutString("DB/String 3", ("Dir after: " + aDirection));
 		SmartDashboard::PutString("DB/String 4", ("Rot after: " + aRotate));
 		SmartDashboard::PutString("DB/String 5", ("Arm after: " + aArm));
+		SmartDashboard::PutString("DB/String 6", ("ArmPot: " + aRightPos));
 #endif
 
 		myRobot.ArcadeDrive(moveDirection, rotateAmount, false);
