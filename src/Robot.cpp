@@ -84,7 +84,7 @@ private:
 	std::string autoSelected;
 
 	void RobotInit() {
-		chooser = new SendableChooser();
+	/*	chooser = new SendableChooser();
 		chooser->AddDefault(autoNameDefault, (void*) &autoNameDefault);
 		chooser->AddObject(autoNameCustom, (void*) &autoNameCustom);
 		SmartDashboard::PutData("Auto Modes", chooser);
@@ -93,7 +93,7 @@ private:
 		//camera->SetExposureManual(50);
 		//camera->SetBrightness(50);
 		//camera->SetWhiteBalanceManual(0);
-		CameraServer::GetInstance()->StartAutomaticCapture(camera);
+		CameraServer::GetInstance()->StartAutomaticCapture(camera); */
 
 	}
 
@@ -164,22 +164,20 @@ private:
 		rotateAmount = createDeadzone(rotateAmount);
 		armMovement = createDeadzone(armMovement);
 
-		double rCurrentPosition = rightArmPotInput.GetAverageVoltage(); //get position value
+		double rCurrentPosition = rightArmPotInput.GetVoltage(); //get position value
+		double lCurrentPosition = leftArmPotInput.GetVoltage(); //get position value
 
-
-		double lCurrentPosition = rightArmPotInput.GetAverageVoltage(); //get position value
-
-		if(controller.GetRawButton(0))
-			rightArmPotMotor.Set(.1);
-		else if(controller.GetRawButton(2))
-			rightArmPotMotor.Set(-.1);
+		if(controller.GetRawButton(3))
+			rightArmPotMotor.Set(.2);
+		else if(controller.GetRawButton(1))
+			rightArmPotMotor.Set(-.2);
 		else
 			rightArmPotMotor.Set(0);
 
-		if(controller.GetRawButton(1))
-			leftArmPotMotor.Set(.1);
-		else if(controller.GetRawButton(3))
-			leftArmPotMotor.Set(-.1);
+		if(controller.GetRawButton(4))
+			leftArmPotMotor.Set(.2);
+		else if(controller.GetRawButton(2))
+			leftArmPotMotor.Set(-.2);
 		else
 			leftArmPotMotor.Set(0);
 
@@ -195,7 +193,6 @@ private:
 		std::string aArm = std::to_string(armMovement);
 		std::string rightPos = std::to_string(rCurrentPosition);
 		std::string leftPos = std::to_string(lCurrentPosition);
-		//TODO: Add output for other arm potentiometer
 		SmartDashboard::PutString("DB/String 3", ("Dir after: " + aDirection));
 		SmartDashboard::PutString("DB/String 4", ("Rot after: " + aRotate));
 		SmartDashboard::PutString("DB/String 5", ("Arm after: " + aArm));
@@ -206,7 +203,7 @@ private:
 		myRobot.ArcadeDrive(moveDirection, rotateAmount, false);
 #endif
 
-		//Arm control.
+		//Arm controling
 	}
 
 	void TestPeriodic() {
