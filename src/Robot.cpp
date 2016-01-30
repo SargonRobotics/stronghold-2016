@@ -165,12 +165,23 @@ private:
 		armMovement = createDeadzone(armMovement);
 
 		double rCurrentPosition = rightArmPotInput.GetAverageVoltage(); //get position value
-//		motorSpeed = (currentPosition - currentSetpoint)*pGain; //convert position error to speed
-//		rightArmPotMotor.Set(motorSpeed); //drive elevator motor
+
 
 		double lCurrentPosition = rightArmPotInput.GetAverageVoltage(); //get position value
-		//		motorSpeed = (currentPosition - currentSetpoint)*pGain; //convert position error to speed
-		//		rightArmPotMotor.Set(motorSpeed); //drive elevator motor
+
+		if(controller.GetRawButton(0))
+			rightArmPotMotor.Set(.1);
+		else if(controller.GetRawButton(2))
+			rightArmPotMotor.Set(-.1);
+		else
+			rightArmPotMotor.Set(0);
+
+		if(controller.GetRawButton(1))
+			leftArmPotMotor.Set(.1);
+		else if(controller.GetRawButton(3))
+			leftArmPotMotor.Set(-.1);
+		else
+			leftArmPotMotor.Set(0);
 
 		//TODO: See debug todo below.
 		//TODO: Test the input we get from arm potentiometers to make sense of them.
@@ -182,12 +193,14 @@ private:
 		std::string aDirection = std::to_string(moveDirection);
 		std::string aRotate = std::to_string(rotateAmount);
 		std::string aArm = std::to_string(armMovement);
-		std::string aRightPos = std::to_string(rCurrentPosition);
+		std::string rightPos = std::to_string(rCurrentPosition);
+		std::string leftPos = std::to_string(lCurrentPosition);
 		//TODO: Add output for other arm potentiometer
 		SmartDashboard::PutString("DB/String 3", ("Dir after: " + aDirection));
 		SmartDashboard::PutString("DB/String 4", ("Rot after: " + aRotate));
 		SmartDashboard::PutString("DB/String 5", ("Arm after: " + aArm));
-		SmartDashboard::PutString("DB/String 6", ("ArmPot: " + aRightPos));
+		SmartDashboard::PutString("DB/String 6", ("rightArmPot: " + rightPos));
+		SmartDashboard::PutString("DB/String 7", ("leftArmPot: " + leftPos));
 #endif
 
 		myRobot.ArcadeDrive(moveDirection, rotateAmount, false);
