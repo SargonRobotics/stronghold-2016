@@ -90,10 +90,8 @@ private:
 		SmartDashboard::PutData("Auto Modes", chooser);
 		CameraServer::GetInstance()->SetQuality(50);
 		std::shared_ptr<USBCamera> camera(new USBCamera ("cam0" , true));
-		//camera->SetExposureManual(50);
-		//camera->SetBrightness(50);
-		//camera->SetWhiteBalanceManual(0);
-		CameraServer::GetInstance()->StartAutomaticCapture(camera);
+		camera->SetExposureManual(30);
+		CameraServer::GetInstance()->StartAutomaticCapture("cam0");
 
 	}
 
