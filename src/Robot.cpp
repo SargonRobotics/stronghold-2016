@@ -5,6 +5,8 @@
 #define ISJOYSTICK 0
 #define DEBUG 1
 #define DEADZONE 0.25
+#define ARMSENSITIVITY 0.2
+#define PGAIN 1
 
 class Robot: public IterativeRobot {
 #if ISJOYSTICK
@@ -162,17 +164,31 @@ private:
 
 		moveDirection = createDeadzone(moveDirection);
 		rotateAmount = createDeadzone(rotateAmount);
-		armMovement = createDeadzone(armMovement);
+		armMovement = -createDeadzone(armMovement);
 
 		double rCurrentPosition = rightArmPotInput.GetAverageVoltage(); //get position value
-//		motorSpeed = (currentPosition - currentSetpoint)*pGain; //convert position error to speed
+		double rTargetPos = rCurrentPosition + (armMovement * ARMSENSITIVITY);
+		if(rTargetPos > 0.9) {
+			rTargetPos = 0.9;
+		} else if(rTargetPos < 0.1) {
+			rTargetPos = 0.1;
+		}
+		double rMotorSpeed = (rTargetPos - rCurrentPosition) * PGAIN; //convert position error to speed
+
 //		rightArmPotMotor.Set(motorSpeed); //drive elevator motor
 
-		double lCurrentPosition = rightArmPotInput.GetAverageVoltage(); //get position value
-		//		motorSpeed = (currentPosition - currentSetpoint)*pGain; //convert position error to speed
-		//		rightArmPotMotor.Set(motorSpeed); //drive elevator motor
+		double lCurrentPosition = leftArmPotInput.GetAverageVoltage(); //get position value
+		double lTargetPos = lCurrentPosition + (armMovement * ARMSENSITIVITY);
+		if(lTargetPos > 0.9) {
+			lTargetPos = 0.9;
+		} else if(lTargetPos < 0.1) {
+			lTargetPos = 0.1;
+		}
+		double lMotorSpeed = (lTargetPos - lCurrentPosition) * PGAIN; //convert position error to speed
 
-		//TODO: See debug todo below.
+
+//		rightArmPotMotor.Set(motorSpeed); //drive elevator motor
+
 		//TODO: Test the input we get from arm potentiometers to make sense of them.
 		//TODO: Very cautiously give the motor an input and hope it doesn't break.
 		//TODO: Add error checking for if the position of the arms differs by too much.
@@ -182,12 +198,17 @@ private:
 		std::string aDirection = std::to_string(moveDirection);
 		std::string aRotate = std::to_string(rotateAmount);
 		std::string aArm = std::to_string(armMovement);
-		std::string aRightPos = std::to_string(rCurrentPosition);
-		//TODO: Add output for other arm potentiometer
+		std::string rightPos = std::to_string(rCurrentPosition);
+		std::string leftPos = std::to_string(lCurrentPosition);
+//		std::string leftSpeed = std::to_string();
+//		std::string rightSpeed = std::to_srting();
 		SmartDashboard::PutString("DB/String 3", ("Dir after: " + aDirection));
 		SmartDashboard::PutString("DB/String 4", ("Rot after: " + aRotate));
 		SmartDashboard::PutString("DB/String 5", ("Arm after: " + aArm));
-		SmartDashboard::PutString("DB/String 6", ("ArmPot: " + aRightPos));
+		SmartDashboard::PutString("DB/String 6", ("rArmPot: " + rightPos));
+		SmartDashboard::PutString("DB/String 7", ("lArmPot: " + leftPos));
+//		SmartDashboard::PutString("DB/String 8", (": " + ));
+//		SmartDashboard::PutString("DB/String 9", (": " + ));
 #endif
 
 		myRobot.ArcadeDrive(moveDirection, rotateAmount, false);
