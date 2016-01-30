@@ -39,6 +39,7 @@ class Robot: public IterativeRobot {
 		LEFTDRIVE = 0, RIGHTDRIVE = 1,
 		LEFTARM = 2, RIGHTARM = 3,
 		LEFTROLLERS = 4, RIGHTROLLERS = 5,
+		SHOOTERAIM = 6,
 	};
 
 	enum inputs {
@@ -56,6 +57,7 @@ class Robot: public IterativeRobot {
 	JoystickButton rollerButton;
 	Talon leftRollerMotor;
 	Talon rightRollerMotor;
+	Talon shooterAimMotor;
 	Talon rightArmPotMotor;
 	Talon leftArmPotMotor;
 public:
@@ -66,6 +68,7 @@ public:
 			rollerButton(&controller, SHOOTBALL),
 			leftRollerMotor(LEFTROLLERS),
 			rightRollerMotor(RIGHTROLLERS),
+			shooterAimMotor(SHOOTERAIM),
 			rightArmPotInput(RIGHTPOTCHANNEL),
 			rightArmPotMotor(RIGHTARM),
 			leftArmPotInput(LEFTPOTCHANNEL),
