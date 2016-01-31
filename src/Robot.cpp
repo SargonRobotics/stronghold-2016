@@ -30,7 +30,7 @@ class Robot: public IterativeRobot {
 	};
 
 	enum axis {
-		SHOOTBALL = 3, ARMDIRECTION = 5, MOVE = 1, ROTATE = 0
+		SHOOTBALL = 3, PULLBALL = 4, ARMDIRECTION = 5, MOVE = 1, ROTATE = 0
 	};
 
 #endif
@@ -40,6 +40,7 @@ class Robot: public IterativeRobot {
 		LEFTARM = 2, RIGHTARM = 3,
 		LEFTROLLERS = 4, RIGHTROLLERS = 5,
 		SHOOTERAIM = 6,
+		LEFTSHOOT = 7, RIGHTSHOOT = 8
 	};
 
 	enum inputs {
@@ -60,6 +61,8 @@ class Robot: public IterativeRobot {
 	Talon shooterAimMotor;
 	Talon rightArmPotMotor;
 	Talon leftArmPotMotor;
+	Talon rightShootMotor;
+	Talon leftShootMotor;
 public:
 
 	Robot() :
@@ -72,7 +75,9 @@ public:
 			rightArmPotInput(RIGHTPOTCHANNEL),
 			rightArmPotMotor(RIGHTARM),
 			leftArmPotInput(LEFTPOTCHANNEL),
-			leftArmPotMotor(LEFTARM)
+			leftArmPotMotor(LEFTARM),
+			rightShootMotor(RIGHTSHOOT),
+			leftShootMotor(LEFTSHOOT)
 	{
 		myRobot.SetExpiration(0.1);
 		//myRobot.SetInvertedMotor()
@@ -87,7 +92,7 @@ private:
 	std::string autoSelected;
 
 	void RobotInit() {
-		chooser = new SendableChooser();
+	/*	chooser = new SendableChooser();
 		chooser->AddDefault(autoNameDefault, (void*) &autoNameDefault);
 		chooser->AddObject(autoNameCustom, (void*) &autoNameCustom);
 		SmartDashboard::PutData("Auto Modes", chooser);
@@ -96,7 +101,7 @@ private:
 		//camera->SetExposureManual(50);
 		//camera->SetBrightness(50);
 		//camera->SetWhiteBalanceManual(0);
-		CameraServer::GetInstance()->StartAutomaticCapture(camera);
+		CameraServer::GetInstance()->StartAutomaticCapture(camera); */
 
 	}
 
@@ -153,6 +158,8 @@ private:
 		double moveDirection = controller.GetRawAxis(MOVE);
 		double rotateAmount = controller.GetRawAxis(ROTATE);
 		double armMovement = controller.GetRawAxis(ARMDIRECTION);
+		double shootState = controller.GetRawAxis(SHOOTBALL);
+//		double pullState = controller.GetRawAxis(PULLBALL);
 
 #if DEBUG
 		std::string bDirection = std::to_string(moveDirection);
@@ -166,6 +173,32 @@ private:
 		moveDirection = createDeadzone(moveDirection);
 		rotateAmount = createDeadzone(rotateAmount);
 		armMovement = createDeadzone(armMovement);
+
+		//One trigger version
+		if(shootState > 0.5){
+			rightShootMotor.Set(1);
+			leftShootMotor.Set(1);
+		} else {
+			rightShootMotor.Set(-0.6);
+			leftShootMotor.Set(-0.6);
+		}
+
+		//Two trigger version
+/*		if(shootState > 0.5){
+			rightShootMotor.Set(1);
+			leftShootMotor.Set(1);
+		} else {
+			rightShootMotor.Set(0);
+			leftShootMotor.Set(0);
+		}
+
+		if(pullState > 0.5){
+			rightShootMotor.Set(-0.6);
+			leftShootMotor.Set(-0.6);
+		} else {
+			rightShootMotor.Set(0);
+			leftShootMotor.Set(0);
+		} */
 
 		double rCurrentPosition = rightArmPotInput.GetAverageVoltage(); //get position value
 //		motorSpeed = (currentPosition - currentSetpoint)*pGain; //convert position error to speed
