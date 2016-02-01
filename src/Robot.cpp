@@ -39,9 +39,8 @@ class Robot: public IterativeRobot {
 	enum motors {
 		LEFTDRIVE = 0, RIGHTDRIVE = 1,
 		LEFTARM = 2, RIGHTARM = 3,
-		LEFTROLLERS = 4, RIGHTROLLERS = 5,
-		SHOOTERAIM = 6,
-		LEFTSHOOT = 7, RIGHTSHOOT = 8,
+		LEFTSHOOT = 4, RIGHTSHOOT = 5,
+		SHOOTERAIM = 6, SHOOTCONTROL = 7
 
 	};
 
@@ -58,28 +57,26 @@ class Robot: public IterativeRobot {
 	RobotDrive myRobot; // robot drive system
 	Joystick controller; // only joystick
 	JoystickButton rollerButton;
-	Talon leftRollerMotor;
-	Talon rightRollerMotor;
 	Talon shooterAimMotor;
 	Talon rightArmPotMotor;
 	Talon leftArmPotMotor;
 	Talon rightShootMotor;
 	Talon leftShootMotor;
+	Servo shootServo;
 public:
 
-	Robot() :
+	Robot():
 			myRobot(LEFTDRIVE, RIGHTDRIVE),	// initialize the RobotDrive to use motor controllers on ports 0 and 1
 			controller(MAINJOY),
 			rollerButton(&controller, SHOOTBALL),
-			leftRollerMotor(LEFTROLLERS),
-			rightRollerMotor(RIGHTROLLERS),
 			shooterAimMotor(SHOOTERAIM),
 			rightArmPotInput(RIGHTPOTCHANNEL),
 			rightArmPotMotor(RIGHTARM),
 			leftArmPotInput(LEFTPOTCHANNEL),
 			leftArmPotMotor(LEFTARM),
 			rightShootMotor(RIGHTSHOOT),
-			leftShootMotor(LEFTSHOOT)
+			leftShootMotor(LEFTSHOOT),
+			shootServo(SHOOTCONTROL)
 	{
 		myRobot.SetExpiration(0.1);
 		//myRobot.SetInvertedMotor()
@@ -155,8 +152,8 @@ private:
 
 #else
 		//Setting up the axes
-		double rightTrigger = controller.GetRawAxis(SHOOTBALL);
-		double rightStickY = controller.GetRawAxis(ARMDIRECTION);
+//		double rightTrigger = controller.GetRawAxis(SHOOTBALL);
+//		double rightStickY = controller.GetRawAxis(ARMDIRECTION);
 		double moveDirection = controller.GetRawAxis(MOVE);
 		double rotateAmount = controller.GetRawAxis(ROTATE);
 		double armMovement = controller.GetRawAxis(ARMDIRECTION);
@@ -186,15 +183,17 @@ private:
 		}
 #else
 		//Two trigger version
-		if(shootState > 0.5 && pullState < 0.5){
-			rightShootMotor.Set(-1);
-			leftShootMotor.Set(-1);
-		} else if(shootState < 0.5 && pullState > 0.5){
-			rightShootMotor.Set(0.4);
-			leftShootMotor.Set(0.4);
+		if (shootState > 0.5 && pullState < 0.5) {
+			rightShootMotor.Set(1);
+			leftShootMotor.Set(1);
+			shootServo.Set(100);
+		} else if (shootState < 0.5 && pullState > 0.5) {
+			rightShootMotor.Set(-0.3);
+			leftShootMotor.Set(-0.3);
 		} else {
 			rightShootMotor.Set(0);
 			leftShootMotor.Set(0);
+			shootServo.Set(0);
 		}
 #endif
 		double rCurrentPosition = rightArmPotInput.GetAverageVoltage(); //get position value
@@ -218,6 +217,7 @@ private:
 		std::string aRightPos = std::to_string(rCurrentPosition);
 		std::string rTrig = std::to_string(shootState);
 		std::string lTrig = std::to_string(pullState);
+		std::string sSpeed = std::to_string(leftShootMotor.Get());
 		//TODO: Add output for other arm potentiometer
 		SmartDashboard::PutString("DB/String 3", ("Dir after: " + aDirection));
 		SmartDashboard::PutString("DB/String 4", ("Rot after: " + aRotate));
@@ -225,6 +225,7 @@ private:
 		SmartDashboard::PutString("DB/String 6", ("ArmPot: " + aRightPos));
 		SmartDashboard::PutString("DB/String 7", ("Right Trig: " + rTrig));
 		SmartDashboard::PutString("DB/String 8", ("Left Trig: " + lTrig));
+		SmartDashboard::PutString("DB/String 9", ("Speed: " + sSpeed));
 #endif
 		myRobot.ArcadeDrive(moveDirection, rotateAmount, false);
 #endif
