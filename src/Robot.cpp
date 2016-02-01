@@ -46,12 +46,16 @@ class Robot: public IterativeRobot {
 		LEFTPOTCHANNEL = 0, RIGHTPOTCHANNEL = 1
 	};
 
-//	enum limit_switches {
-//		MINARM = 0, LEFTARM = 1, RIGHTARM = 2
-//	};
-
-	AnalogInput rightArmPotInput;
-	AnalogInput leftArmPotInput;
+	enum limit_switches { //DIGITAL INPUT
+		MINARM = 0, MAXARM = 1, CHANNELA = 2, CHANNELB = 3,
+};
+//	AnalogInput rightArmPotInput;
+//	AnalogInput leftArmPotInput;
+	AnalogPotentiometer rightArmPotInput;
+	AnalogPotentiometer leftArmPotInput;
+	DigitalInput bottomSwitch;
+	DigitalInput topSwitch;
+	Encoder encoder;
 	RobotDrive myRobot; // robot drive system
 	Joystick controller; // only joystick
 	JoystickButton rollerButton;
@@ -71,8 +75,13 @@ public:
 			shooterAimMotor(SHOOTERAIM),
 			rightArmPotInput(RIGHTPOTCHANNEL),
 			rightArmPotMotor(RIGHTARM),
-			leftArmPotInput(LEFTPOTCHANNEL),
-			leftArmPotMotor(LEFTARM)
+			leftArmPotInput(LEFTPOTCHANNEL, 360, 10),
+			//TODO: Find offset. either 12 (full scale of linear motion) or 3600 (full scale of angular motion)
+			leftArmPotMotor(LEFTARM),
+			bottomSwitch(MINARM),
+			topSwitch(MAXARM),
+			encoder(CHANNELA, CHANNELB, false, Encoder::EncodingType::k4X)
+
 	{
 		myRobot.SetExpiration(0.1);
 		//myRobot.SetInvertedMotor()
