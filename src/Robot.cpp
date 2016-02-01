@@ -5,6 +5,7 @@
 #define ISJOYSTICK 0
 #define DEBUG 1
 #define DEADZONE 0.25
+#define BALLHOLDER 9
 
 class Robot: public IterativeRobot {
 #if ISJOYSTICK
@@ -30,7 +31,7 @@ class Robot: public IterativeRobot {
 	};
 
 	enum axis {
-		SHOOTBALL = 3, PULLBALL = 4, ARMDIRECTION = 5, MOVE = 1, ROTATE = 0
+		SHOOTBALL = 3, PULLBALL = 2, ARMDIRECTION = 5, MOVE = 1, ROTATE = 0
 	};
 
 #endif
@@ -40,7 +41,8 @@ class Robot: public IterativeRobot {
 		LEFTARM = 2, RIGHTARM = 3,
 		LEFTROLLERS = 4, RIGHTROLLERS = 5,
 		SHOOTERAIM = 6,
-		LEFTSHOOT = 7, RIGHTSHOOT = 8
+		LEFTSHOOT = 7, RIGHTSHOOT = 8,
+
 	};
 
 	enum inputs {
@@ -184,17 +186,12 @@ private:
 		}
 #else
 		//Two trigger version
-		if(shootState > 0.5){
-			rightShootMotor.Set(1);
-			leftShootMotor.Set(1);
-		} else {
-			rightShootMotor.Set(0);
-			leftShootMotor.Set(0);
-		}
-
-		if(pullState > 0.5){
-			rightShootMotor.Set(-0.6);
-			leftShootMotor.Set(-0.6);
+		if(shootState > 0.5 && pullState < 0.5){
+			rightShootMotor.Set(-1);
+			leftShootMotor.Set(-1);
+		} else if(shootState < 0.5 && pullState > 0.5){
+			rightShootMotor.Set(0.4);
+			leftShootMotor.Set(0.4);
 		} else {
 			rightShootMotor.Set(0);
 			leftShootMotor.Set(0);
@@ -219,11 +216,15 @@ private:
 		std::string aRotate = std::to_string(rotateAmount);
 		std::string aArm = std::to_string(armMovement);
 		std::string aRightPos = std::to_string(rCurrentPosition);
+		std::string rTrig = std::to_string(shootState);
+		std::string lTrig = std::to_string(pullState);
 		//TODO: Add output for other arm potentiometer
 		SmartDashboard::PutString("DB/String 3", ("Dir after: " + aDirection));
 		SmartDashboard::PutString("DB/String 4", ("Rot after: " + aRotate));
 		SmartDashboard::PutString("DB/String 5", ("Arm after: " + aArm));
 		SmartDashboard::PutString("DB/String 6", ("ArmPot: " + aRightPos));
+		SmartDashboard::PutString("DB/String 7", ("Right Trig: " + rTrig));
+		SmartDashboard::PutString("DB/String 8", ("Left Trig: " + lTrig));
 #endif
 		myRobot.ArcadeDrive(moveDirection, rotateAmount, false);
 #endif
