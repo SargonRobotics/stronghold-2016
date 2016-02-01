@@ -71,10 +71,18 @@ public:
 			leftRollerMotor(LEFTROLLERS),
 			rightRollerMotor(RIGHTROLLERS),
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 			rightArmPotInput(RIGHTPOTCHANNEL),
 =======
 			shooterAimMotor(SHOOTERAIM),
 			rightArmPotInput(RIGHTPOTCHANNEL, 360, 10),
+=======
+			shooterAimMotor(SHOOTERAIM),
+			rightArmPotInput(RIGHTPOTCHANNEL, 360, 10),
+			//TODO: Find offset. either 12 (full scale of linear motion) or 3600 (full scale of angular motion)
+			rightArmPotMotor(RIGHTARM),
+			leftArmPotInput(LEFTPOTCHANNEL, 360, 10),
+>>>>>>> Stashed changes
 			//TODO: Find offset. either 12 (full scale of linear motion) or 3600 (full scale of angular motion)
 >>>>>>> Stashed changes
 			rightArmPotMotor(RIGHTARM),
