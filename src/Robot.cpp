@@ -21,27 +21,27 @@ class Robot: public IterativeRobot {
 	};
 
 #else
-	enum joystick {
+	enum joystick { //CONTROLLER
 		MAINJOY = 0
 	};
 
-	enum buttons {
+	enum buttons { //CONTROLLER
 
 	};
 
-	enum axis {
+	enum axis {  //CONTROLLER
 		SHOOTBALL = 3, ARMDIRECTION = 5, MOVE = 1, ROTATE = 0
 	};
 
 #endif
 
-	enum motors {
+	enum motors { //PWM
 		LEFTDRIVE = 0, RIGHTDRIVE = 1,
 		LEFTARM = 2, RIGHTARM = 3,
 		LEFTROLLERS = 4, RIGHTROLLERS = 5,
 	};
 
-	enum inputs {
+	enum inputs {  //ANALOG INPUT
 		LEFTPOTCHANNEL = 0, RIGHTPOTCHANNEL = 1
 	};
 
@@ -58,6 +58,10 @@ class Robot: public IterativeRobot {
 	Talon rightRollerMotor;
 	Talon rightArmPotMotor;
 	Talon leftArmPotMotor;
+
+	const double pLeftGain = 0.405; //proportional speed constant
+	// const double pRightGain = ;
+	//TODO: Find right potentiometer's pGain
 public:
 
 	Robot() :
@@ -66,7 +70,13 @@ public:
 			rollerButton(&controller, SHOOTBALL),
 			leftRollerMotor(LEFTROLLERS),
 			rightRollerMotor(RIGHTROLLERS),
+<<<<<<< Updated upstream
 			rightArmPotInput(RIGHTPOTCHANNEL),
+=======
+			shooterAimMotor(SHOOTERAIM),
+			rightArmPotInput(RIGHTPOTCHANNEL, 360, 10),
+			//TODO: Find offset. either 12 (full scale of linear motion) or 3600 (full scale of angular motion)
+>>>>>>> Stashed changes
 			rightArmPotMotor(RIGHTARM),
 			leftArmPotInput(LEFTPOTCHANNEL),
 			leftArmPotMotor(LEFTARM)
@@ -108,7 +118,7 @@ private:
 	 */
 	void AutonomousInit() {
 		autoSelected = *((std::string*) chooser->GetSelected());
-		//std::string autoSelected = SmartDashboard::GetString("Auto Selector", autoNameDefault);
+		std::string autoSelected = SmartDashboard::GetString("Auto Selector", autoNameDefault);
 
 		if (autoSelected == autoNameCustom) {
 			//Custom Auto goes here
@@ -164,11 +174,18 @@ private:
 		rotateAmount = createDeadzone(rotateAmount);
 		armMovement = createDeadzone(armMovement);
 
-		double rCurrentPosition = rightArmPotInput.GetAverageVoltage(); //get position value
+		int index = 0;
+		double currentSetpoint; //holds desired setpoint
+		const int size = 4; //number of setpoints. ground, lowered portcullis, raised portcullis, max
+		const double setpoints[size] = {0.0, 0.5, 4.0, 4.5}; //setpoint locations
+		//TODO: Find upper three setpoints
+		currentSetpoint = setpoints[0]; //set to first setpoint
+
+//		double rCurrentPosition = rightArmPotInput.GetAverageVoltage(); //get position value
 //		motorSpeed = (currentPosition - currentSetpoint)*pGain; //convert position error to speed
 //		rightArmPotMotor.Set(motorSpeed); //drive elevator motor
 
-		double lCurrentPosition = rightArmPotInput.GetAverageVoltage(); //get position value
+//		double lCurrentPosition = rightArmPotInput.GetAverageVoltage(); //get position value
 		//		motorSpeed = (currentPosition - currentSetpoint)*pGain; //convert position error to speed
 		//		rightArmPotMotor.Set(motorSpeed); //drive elevator motor
 
@@ -178,22 +195,75 @@ private:
 		//TODO: Add error checking for if the position of the arms differs by too much.
 		//TODO: Add controls for moving the arms together.
 
+		double lCurrentPosition = leftArmPotInput.Get();
+		double rCurrentPosition = rightArmPotInput.Get();
+		std::string potStatement;
+
+		//Tell user if potentiometer is off
+		if ((bottomSwitch = 0) && (lCurrentPosition!= 0) && (rCurrentPosition != 0)) {
+			std::string potStatement = "BOTH "; //both pots off, left pot error printed first
+			SmartDashboard::PutString("DB/String 8", ("PotError " + potStatement + lCurrentPosition + " " + rCurrentPosition));
+		} else if ((bottomSwitch = 0) && (rCurrentPosition != 0)) {
+			std::string potStatement = "RIGHT "; //right pot off
+			SmartDashboard::PutString("DB/String 8 ", ("PotError " + potStatement + rCurrentPosition));
+		} else if ((bottomSwitch = 0) && (lCurrentPosition != 0)) {
+			std::string potStatement = "LEFT ";  //left pot off
+			SmartDashboard::PutString("DB/String 8", ("PotError " + potStatement + rCurrentPosition));
+		} else { //both pots accurate
+			std::string potStatement = "NONE";
+			SmartDashboard::PutString("DB/String 8", ("PotError " + potStatement))
+			}
+
+		//Sets motor speeds based on armMovement axis
+		//If unequal. equalizes height of arm
+		if ((fabs(armMovement) > .2) && (lCurrentPosition == rCurrentPosition)) { //operator moving and arm heights equal
+			//Left DART
+			double lmotorSpeed = (lCurrentPosition + armMovement)*pLeftGain; //convert position error to speed
+			leftArmPotMotor.Set(lmotorSpeed);
+			//Right Dart
+			double rmotorSpeed = (rCurrentPosition + armMovement)*pRightGain; //convert position error to speed
+			rightArmPotMotor.Set(rmotorSpeed);
+		} else if ((fabs(armMovement) > .2) && (lCurrentPosition != rCurrentPosition)) { //operator moving and arm heights unequal
+			double armDifference = lCurrentPosition - rCurrentPosition; //accounts for difference in arm height
+			//Left DART
+			double lmotorSpeed = (lCurrentPosition + armMovement + armDifference)*pLeftGain; //convert position error to speed
+			leftArmPotMotor.Set(lmotorSpeed);
+			//Right Dart
+			double rmotorSpeed = (rCurrentPosition + armMovement + armDifference)*pRightGain; //convert position error to speed
+			rightArmPotMotor.Set(rmotorSpeed);
+		} else if ((fabs(armMovement) <= .2) && (lCurrentPosition != rCurrentPosition)) { //operator not moving and arm heights unequal
+			double armDifference = lCurrentPosition - rCurrentPosition; //accounts for difference in arm height
+			double lmotorSpeed = (lCurrentPosition + armDifference)*pLeftGain; //convert position error to speed
+			leftArmPotMotor.Set(lmotorSpeed); //Left Dart Output
+			double rmotorSpeed = (rCurrentPosition + armDifference)*pRightGain; //convert position error to speed
+			rightArmPotMotor.Set(rmotorSpeed); //Right Dart Output
+		} else { //Operator not moving and arm heights equal
+			//TODO: Find output to keep height
+			//Add buttons for arm height here
+			double lmotorSpeed = 0; //Left DART
+			leftArmPotMotor.Set(lmotorSpeed);
+			double rmotorSpeed = 0; //Right Dart
+			rightArmPotMotor.Set(rmotorSpeed);
+		}
+
 #if DEBUG
 		std::string aDirection = std::to_string(moveDirection);
 		std::string aRotate = std::to_string(rotateAmount);
 		std::string aArm = std::to_string(armMovement);
+		std::string aLeftPos = std::to_string(lCurrentPosition);
 		std::string aRightPos = std::to_string(rCurrentPosition);
-		//TODO: Add output for other arm potentiometer
 		SmartDashboard::PutString("DB/String 3", ("Dir after: " + aDirection));
 		SmartDashboard::PutString("DB/String 4", ("Rot after: " + aRotate));
 		SmartDashboard::PutString("DB/String 5", ("Arm after: " + aArm));
-		SmartDashboard::PutString("DB/String 6", ("ArmPot: " + aRightPos));
+		SmartDashboard::PutString("DB/String 6", ("ArmPot: " + aLeftPos));
+		SmartDashboard::PutString("DB/String 7", ("ArmPot: " + aRightPos));
 #endif
 
 		myRobot.ArcadeDrive(moveDirection, rotateAmount, false);
 #endif
 
-		//Arm control.
+		//Arm Control
+
 	}
 
 	void TestPeriodic() {
