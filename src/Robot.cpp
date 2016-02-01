@@ -45,12 +45,15 @@ class Robot: public IterativeRobot {
 		LEFTPOTCHANNEL = 0, RIGHTPOTCHANNEL = 1
 	};
 
-//	enum limit_switches {
-//		MINARM = 0, LEFTARM = 1, RIGHTARM = 2
-//	};
+	enum digitalinputs { //DIGITAL INPUT
+		MINARM = 0, MAXARM = 1, CHANNELA = 2, CHANNELB = 3
+	};
 
-	AnalogInput rightArmPotInput;
-	AnalogInput leftArmPotInput;
+	AnalogPotentiometer rightArmPotInput;
+	AnalogPotentiometer leftArmPotInput;
+	DigitalInput bottomSwitch;
+	DigitalInput topSwitch;
+	Encoder encoder;
 	RobotDrive myRobot; // robot drive system
 	Joystick controller; // only joystick
 	JoystickButton rollerButton;
@@ -70,24 +73,16 @@ public:
 			rollerButton(&controller, SHOOTBALL),
 			leftRollerMotor(LEFTROLLERS),
 			rightRollerMotor(RIGHTROLLERS),
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-			rightArmPotInput(RIGHTPOTCHANNEL),
-=======
 			shooterAimMotor(SHOOTERAIM),
-			rightArmPotInput(RIGHTPOTCHANNEL, 360, 10),
-=======
-			shooterAimMotor(SHOOTERAIM),
+			encoder(CHANNELA, CHANNEL B, false, Encoder::EncodingType.k4X),
+			bottomSwitch(MINARM),
+			topSwitch(MAXARM,)
 			rightArmPotInput(RIGHTPOTCHANNEL, 360, 10),
 			//TODO: Find offset. either 12 (full scale of linear motion) or 3600 (full scale of angular motion)
 			rightArmPotMotor(RIGHTARM),
 			leftArmPotInput(LEFTPOTCHANNEL, 360, 10),
->>>>>>> Stashed changes
-			//TODO: Find offset. either 12 (full scale of linear motion) or 3600 (full scale of angular motion)
->>>>>>> Stashed changes
-			rightArmPotMotor(RIGHTARM),
-			leftArmPotInput(LEFTPOTCHANNEL),
 			leftArmPotMotor(LEFTARM)
+)
 	{
 		myRobot.SetExpiration(0.1);
 		//myRobot.SetInvertedMotor()
