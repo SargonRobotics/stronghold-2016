@@ -159,7 +159,7 @@ private:
 		double rotateAmount = controller.GetRawAxis(ROTATE);
 		double armMovement = controller.GetRawAxis(ARMDIRECTION);
 		double shootState = controller.GetRawAxis(SHOOTBALL);
-//		double pullState = controller.GetRawAxis(PULLBALL);
+		double pullState = controller.GetRawAxis(PULLBALL);
 
 #if DEBUG
 		std::string bDirection = std::to_string(moveDirection);
@@ -173,7 +173,7 @@ private:
 		moveDirection = createDeadzone(moveDirection);
 		rotateAmount = createDeadzone(rotateAmount);
 		armMovement = createDeadzone(armMovement);
-
+#if JOYSTICK
 		//One trigger version
 		if(shootState > 0.5){
 			rightShootMotor.Set(1);
@@ -182,9 +182,9 @@ private:
 			rightShootMotor.Set(-0.6);
 			leftShootMotor.Set(-0.6);
 		}
-
+#else
 		//Two trigger version
-/*		if(shootState > 0.5){
+		if(shootState > 0.5){
 			rightShootMotor.Set(1);
 			leftShootMotor.Set(1);
 		} else {
@@ -198,8 +198,8 @@ private:
 		} else {
 			rightShootMotor.Set(0);
 			leftShootMotor.Set(0);
-		} */
-
+		}
+#endif
 		double rCurrentPosition = rightArmPotInput.GetAverageVoltage(); //get position value
 //		motorSpeed = (currentPosition - currentSetpoint)*pGain; //convert position error to speed
 //		rightArmPotMotor.Set(motorSpeed); //drive elevator motor
@@ -225,7 +225,6 @@ private:
 		SmartDashboard::PutString("DB/String 5", ("Arm after: " + aArm));
 		SmartDashboard::PutString("DB/String 6", ("ArmPot: " + aRightPos));
 #endif
-
 		myRobot.ArcadeDrive(moveDirection, rotateAmount, false);
 #endif
 
