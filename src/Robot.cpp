@@ -5,7 +5,6 @@
 #define ISJOYSTICK 0
 #define DEBUG 1
 #define DEADZONE 0.25
-#define BALLHOLDER 9
 
 class Robot: public IterativeRobot {
 #if ISJOYSTICK
