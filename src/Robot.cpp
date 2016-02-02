@@ -47,9 +47,9 @@ class Robot: public IterativeRobot {
 		LEFTPOTCHANNEL = 0, RIGHTPOTCHANNEL = 1
 	};
 
-//	enum limit_switches {
-//		MINARM = 0, LEFTARM = 1, RIGHTARM = 2
-//	};
+	enum limit_switches {
+		MINARM = 0, MAXARM, CHANNEL_A, CHANNEL_B
+	};
 
 	AnalogInput rightArmPotInput;
 	AnalogInput leftArmPotInput;
@@ -62,6 +62,7 @@ class Robot: public IterativeRobot {
 	Talon rightShootMotor;
 	Talon leftShootMotor;
 	Servo shootServo;
+	Encoder shooterAngle;
 public:
 
 	Robot():
@@ -75,7 +76,8 @@ public:
 			leftArmPotMotor(LEFTARM),
 			rightShootMotor(RIGHTSHOOT),
 			leftShootMotor(LEFTSHOOT),
-			shootServo(SHOOTCONTROL)
+			shootServo(SHOOTCONTROL),
+			shooterAngle(CHANNEL_A, CHANNEL_B, false, Encoder::EncodingType::k4X)
 	{
 		myRobot.SetExpiration(0.1);
 		//myRobot.SetInvertedMotor()
@@ -158,6 +160,7 @@ private:
 		double armMovement = controller.GetRawAxis(ARMDIRECTION);
 		double shootState = controller.GetRawAxis(SHOOTBALL);
 		double pullState = controller.GetRawAxis(PULLBALL);
+		double shootAngle = shooterAngle.Get();
 
 #if DEBUG
 		std::string bDirection = std::to_string(moveDirection);
@@ -214,17 +217,15 @@ private:
 		std::string aRotate = std::to_string(rotateAmount);
 		std::string aArm = std::to_string(armMovement);
 		std::string aRightPos = std::to_string(rCurrentPosition);
-		std::string rTrig = std::to_string(shootState);
-		std::string lTrig = std::to_string(pullState);
-		std::string sSpeed = std::to_string(leftShootMotor.Get());
+		std::string motorSpeed = std::to_string(leftShootMotor.Get());
+		std::string printAngle = std::to_string(shootAngle);
 		//TODO: Add output for other arm potentiometer
 		SmartDashboard::PutString("DB/String 3", ("Dir after: " + aDirection));
 		SmartDashboard::PutString("DB/String 4", ("Rot after: " + aRotate));
 		SmartDashboard::PutString("DB/String 5", ("Arm after: " + aArm));
 		SmartDashboard::PutString("DB/String 6", ("ArmPot: " + aRightPos));
-		SmartDashboard::PutString("DB/String 7", ("Right Trig: " + rTrig));
-		SmartDashboard::PutString("DB/String 8", ("Left Trig: " + lTrig));
-		SmartDashboard::PutString("DB/String 9", ("Speed: " + sSpeed));
+		SmartDashboard::PutString("DB/String 7", ("Speed: " + motorSpeed));
+		SmartDashboard::PutString("DB/String 8", ("Angle: " + printAngle));
 #endif
 		myRobot.ArcadeDrive(moveDirection, rotateAmount, false);
 #endif
