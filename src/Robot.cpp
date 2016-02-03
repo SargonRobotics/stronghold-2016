@@ -5,6 +5,7 @@
 #define ISJOYSTICK 0
 #define DEBUG 1
 #define DEADZONE 0.25
+#define ARMERROR 0.1 //The max acceptable difference between the arms.
 
 class Robot: public IterativeRobot {
 #if ISJOYSTICK
@@ -63,7 +64,7 @@ class Robot: public IterativeRobot {
 	Talon leftArmPotMotor;
 
 	const double pLeftGain = 0.405; //proportional speed constant
-	// const double pRightGain = ;
+//	const double pRightGain = ;
 	//TODO: Find right potentiometer's pGain
 public:
 
@@ -201,45 +202,27 @@ private:
 		double lCurrentPosition = leftArmPotInput.Get();
 		double rCurrentPosition = rightArmPotInput.Get();
 		std::string potStatement;
-
-		//Tell user if potentiometer is off
-		if ((bottomSwitch = 0) && (lCurrentPosition!= 0) && (rCurrentPosition != 0)) {
-			std::string potStatement = "BOTH "; //both pots off, left pot error printed first
-			SmartDashboard::PutString("DB/String 8", ("PotError " + potStatement + lCurrentPosition + " " + rCurrentPosition));
-		} else if ((bottomSwitch = 0) && (rCurrentPosition != 0)) {
-			std::string potStatement = "RIGHT "; //right pot off
-			SmartDashboard::PutString("DB/String 8 ", ("PotError " + potStatement + rCurrentPosition));
-		} else if ((bottomSwitch = 0) && (lCurrentPosition != 0)) {
-			std::string potStatement = "LEFT ";  //left pot off
-			SmartDashboard::PutString("DB/String 8", ("PotError " + potStatement + rCurrentPosition));
-		} else { //both pots accurate
-			std::string potStatement = "NONE";
-			SmartDashboard::PutString("DB/String 8", ("PotError " + potStatement))
-			}
+		double armDifference = lCurrentPosition - rCurrentPosition; //accounts for difference in arm height
 
 		//Sets motor speeds based on armMovement axis
 		//If unequal. equalizes height of arm
-		if ((fabs(armMovement) > .2) && (lCurrentPosition == rCurrentPosition)) { //operator moving and arm heights equal
+		if ((fabs(armMovement) > .2) && fabs(armDifference) < ARMERROR) { //operator moving and arm heights equal
 			//Left DART
-			double lmotorSpeed = (lCurrentPosition + armMovement)*pLeftGain; //convert position error to speed
+			double lmotorSpeed = (lCurrentPosition - currentSetpoint)*pLeftGain; //convert position error to speed
 			leftArmPotMotor.Set(lmotorSpeed);
 			//Right Dart
-			double rmotorSpeed = (rCurrentPosition + armMovement)*pRightGain; //convert position error to speed
+			double rmotorSpeed = (rCurrentPosition - currentSetpoint)*pRightGain; //convert position error to speed
 			rightArmPotMotor.Set(rmotorSpeed);
-		} else if ((fabs(armMovement) > .2) && (lCurrentPosition != rCurrentPosition)) { //operator moving and arm heights unequal
-			double armDifference = lCurrentPosition - rCurrentPosition; //accounts for difference in arm height
+		} else if (fabs(armDifference) >= ARMERROR) { //operator moving and arm heights unequal
+			//Try to move arms back together.
+			currentSetpoint = (lCurrentPosition + rCurrentPosition) / 2;
+
 			//Left DART
-			double lmotorSpeed = (lCurrentPosition + armMovement + armDifference)*pLeftGain; //convert position error to speed
+			double lmotorSpeed = (lCurrentPosition - currentSetpoint)*pLeftGain; //convert position error to speed
 			leftArmPotMotor.Set(lmotorSpeed);
 			//Right Dart
-			double rmotorSpeed = (rCurrentPosition + armMovement + armDifference)*pRightGain; //convert position error to speed
+			double rmotorSpeed = (rCurrentPosition - currentSetpoint)*pRightGain; //convert position error to speed
 			rightArmPotMotor.Set(rmotorSpeed);
-		} else if ((fabs(armMovement) <= .2) && (lCurrentPosition != rCurrentPosition)) { //operator not moving and arm heights unequal
-			double armDifference = lCurrentPosition - rCurrentPosition; //accounts for difference in arm height
-			double lmotorSpeed = (lCurrentPosition + armDifference)*pLeftGain; //convert position error to speed
-			leftArmPotMotor.Set(lmotorSpeed); //Left Dart Output
-			double rmotorSpeed = (rCurrentPosition + armDifference)*pRightGain; //convert position error to speed
-			rightArmPotMotor.Set(rmotorSpeed); //Right Dart Output
 		} else { //Operator not moving and arm heights equal
 			//TODO: Find output to keep height
 			//Add buttons for arm height here
@@ -260,16 +243,31 @@ private:
 		SmartDashboard::PutString("DB/String 5", ("Arm after: " + aArm));
 		SmartDashboard::PutString("DB/String 6", ("ArmPot: " + aLeftPos));
 		SmartDashboard::PutString("DB/String 7", ("ArmPot: " + aRightPos));
+
+		//Tell user if potentiometer is off
+		double acceptableErrorLimit = 0.25;
+		if ((bottomSwitch = 0) && (lCurrentPosition > acceptableErrorLimit) && (rCurrentPosition > acceptableErrorLimit)) {
+			std::string potStatement = "BOTH "; //both pots off, left pot error printed first
+			SmartDashboard::PutString("DB/String 8", ("PotError " + potStatement + lCurrentPosition + " " + rCurrentPosition));
+		} else if ((bottomSwitch = 0) && (rCurrentPosition > acceptableErrorLimit)) {
+			std::string potStatement = "RIGHT "; //right pot off
+			SmartDashboard::PutString("DB/String 8 ", ("PotError " + potStatement + rCurrentPosition));
+		} else if ((bottomSwitch = 0) && (lCurrentPosition > acceptableErrorLimit)) {
+			std::string potStatement = "LEFT ";  //left pot off
+			SmartDashboard::PutString("DB/String 8", ("PotError " + potStatement + rCurrentPosition));
+		} else { //both pots accurate
+			std::string potStatement = "NONE";
+			SmartDashboard::PutString("DB/String 8", ("PotError " + potStatement))
+			}
 #endif
 
 		myRobot.ArcadeDrive(moveDirection, rotateAmount, false);
 #endif
 
-		//Arm Control
 
 	}
 
-	void TestPeriodic() {
+	void TestPeriodic()
 		lw->Run();
 	}
 
@@ -288,4 +286,4 @@ private:
 	}
 };
 
-START_ROBOT_CLASS(Robot)
+START_ROBOT_CLASS(Robot)t
