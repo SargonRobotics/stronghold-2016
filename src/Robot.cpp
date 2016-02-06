@@ -27,7 +27,7 @@ class Robot: public IterativeRobot {
 	};
 
 	enum buttons { //CONTROLLER
-
+		DRIVECONTROL = 8
 	};
 
 	enum axis {  //CONTROLLER
@@ -62,6 +62,7 @@ class Robot: public IterativeRobot {
 	Talon rightRollerMotor;
 	Talon rightArmPotMotor;
 	Talon leftArmPotMotor;
+	JoystickButton reverse;
 
 	const double pLeftGain = 0.405; //proportional speed constant
 	const double pRightGain = pLeftGain;
@@ -81,7 +82,8 @@ public:
 			//TODO: Find offset. either 12 (full scale of linear motion) or 3600 (full scale of angular motion)
 			rightArmPotMotor(RIGHTARM),
 			leftArmPotInput(LEFTPOTCHANNEL, 360, 10),
-			leftArmPotMotor(LEFTARM)
+			leftArmPotMotor(LEFTARM),
+			reverse(&controller, DRIVECONTROL)
 	{
 		myRobot.SetExpiration(0.1);
 		//myRobot.SetInvertedMotor()
@@ -163,6 +165,9 @@ private:
 		double rotateAmount = controller.GetRawAxis(ROTATE);
 		double armMovement = controller.GetRawAxis(ARMDIRECTION);
 
+		bool isReversed = false;
+		bool prevReverse = false;
+
 #if DEBUG
 		std::string bDirection = std::to_string(moveDirection);
 		std::string bRotate = std::to_string(rotateAmount);
@@ -175,6 +180,15 @@ private:
 		moveDirection = createDeadzone(moveDirection);
 		rotateAmount = createDeadzone(rotateAmount);
 		armMovement = createDeadzone(armMovement);
+
+		if(reverse.Grab()) {
+			isReversed = !isReversed;
+		}
+
+		if(isReversed != prevReverse){
+			moveDirection *= -1;
+			//rotateAmount *= -1;
+		}
 
 		int index = 0;
 		double currentSetpoint; //holds desired setpoint
@@ -236,11 +250,13 @@ private:
 		std::string aArm = std::to_string(armMovement);
 		std::string aLeftPos = std::to_string(lCurrentPosition);
 		std::string aRightPos = std::to_string(rCurrentPosition);
+		std::string reversed = std::to_string(isReversed);
 		SmartDashboard::PutString("DB/String 3", ("Dir after: " + aDirection));
 		SmartDashboard::PutString("DB/String 4", ("Rot after: " + aRotate));
 		SmartDashboard::PutString("DB/String 5", ("Arm after: " + aArm));
 		SmartDashboard::PutString("DB/String 6", ("ArmPot: " + aLeftPos));
 		SmartDashboard::PutString("DB/String 7", ("ArmPot: " + aRightPos));
+		SmartDashboard::PutString("EB/String 9", ("Reversed: ") + reversed);
 
 		//Tell user if potentiometer is off
 		double acceptableErrorLimit = 0.25;
