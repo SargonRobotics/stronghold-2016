@@ -64,7 +64,7 @@ class Robot: public IterativeRobot {
 	Talon leftArmPotMotor;
 
 	const double pLeftGain = 0.405; //proportional speed constant
-//	const double pRightGain = ;
+	const double pRightGain = pLeftGain;
 	//TODO: Find right potentiometer's pGain
 public:
 
@@ -74,16 +74,14 @@ public:
 			rollerButton(&controller, SHOOTBALL),
 			leftRollerMotor(LEFTROLLERS),
 			rightRollerMotor(RIGHTROLLERS),
-			shooterAimMotor(SHOOTERAIM),
-			encoder(CHANNELA, CHANNEL B, false, Encoder::EncodingType.k4X),
+			encoder(CHANNELA, CHANNELB, false, Encoder::EncodingType::k4X),
 			bottomSwitch(MINARM),
-			topSwitch(MAXARM,)
+			topSwitch(MAXARM),
 			rightArmPotInput(RIGHTPOTCHANNEL, 360, 10),
 			//TODO: Find offset. either 12 (full scale of linear motion) or 3600 (full scale of angular motion)
 			rightArmPotMotor(RIGHTARM),
 			leftArmPotInput(LEFTPOTCHANNEL, 360, 10),
 			leftArmPotMotor(LEFTARM)
-)
 	{
 		myRobot.SetExpiration(0.1);
 		//myRobot.SetInvertedMotor()
@@ -246,36 +244,37 @@ private:
 
 		//Tell user if potentiometer is off
 		double acceptableErrorLimit = 0.25;
-		if ((bottomSwitch = 0) && (lCurrentPosition > acceptableErrorLimit) && (rCurrentPosition > acceptableErrorLimit)) {
+		if ((bottomSwitch.Get() == 0) && (lCurrentPosition > acceptableErrorLimit) && (rCurrentPosition > acceptableErrorLimit)) {
 			std::string potStatement = "BOTH "; //both pots off, left pot error printed first
-			SmartDashboard::PutString("DB/String 8", ("PotError " + potStatement + lCurrentPosition + " " + rCurrentPosition));
-		} else if ((bottomSwitch = 0) && (rCurrentPosition > acceptableErrorLimit)) {
+			SmartDashboard::PutString("DB/String 8", ("PotError " + potStatement +
+					aLeftPos + " " + aRightPos));
+		} else if ((bottomSwitch.Get() == 0) && (rCurrentPosition > acceptableErrorLimit)) {
 			std::string potStatement = "RIGHT "; //right pot off
-			SmartDashboard::PutString("DB/String 8 ", ("PotError " + potStatement + rCurrentPosition));
-		} else if ((bottomSwitch = 0) && (lCurrentPosition > acceptableErrorLimit)) {
+			SmartDashboard::PutString("DB/String 8 ", ("PotError " + potStatement +
+					aRightPos));
+		} else if ((bottomSwitch.Get() == 0) && (lCurrentPosition > acceptableErrorLimit)) {
 			std::string potStatement = "LEFT ";  //left pot off
-			SmartDashboard::PutString("DB/String 8", ("PotError " + potStatement + rCurrentPosition));
+			SmartDashboard::PutString("DB/String 8", ("PotError " + potStatement +
+					aRightPos));
 		} else { //both pots accurate
 			std::string potStatement = "NONE";
-			SmartDashboard::PutString("DB/String 8", ("PotError " + potStatement))
-			}
+			SmartDashboard::PutString("DB/String 8", ("PotError " + potStatement));
+		}
 #endif
 
 		myRobot.ArcadeDrive(moveDirection, rotateAmount, false);
 #endif
-
-
 	}
 
-	void TestPeriodic()
+	void TestPeriodic() {
 		lw->Run();
 	}
 
-	double createDeadzone(double amount, double deadzone=DEADZONE){
-		if(fabs(amount) < deadzone){
+	double createDeadzone(double amount, double deadzone = DEADZONE) {
+		if (fabs(amount) < deadzone) {
 			amount = 0;
 		} else {
-			if(amount < 0){
+			if (amount < 0) {
 				amount += deadzone;
 			} else {
 				amount -= deadzone;
@@ -286,4 +285,4 @@ private:
 	}
 };
 
-START_ROBOT_CLASS(Robot)t
+START_ROBOT_CLASS(Robot)
