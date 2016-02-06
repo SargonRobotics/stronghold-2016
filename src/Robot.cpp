@@ -30,7 +30,7 @@ class Robot: public IterativeRobot {
 	};
 
 	enum axis {
-		SHOOTBALL = 3, ARMDIRECTION = 5, MOVE = 1, ROTATE = 0
+		SHOOTBALL = 3, PULLBALL = 2, ARMDIRECTION = 5, MOVE = 1, ROTATE = 0
 	};
 
 #endif
@@ -38,8 +38,9 @@ class Robot: public IterativeRobot {
 	enum motors {
 		LEFTDRIVE = 0, RIGHTDRIVE = 1,
 		LEFTARM = 2, RIGHTARM = 3,
-		LEFTROLLERS = 4, RIGHTROLLERS = 5,
-		SHOOTERAIM = 6,
+		LEFTSHOOT = 4, RIGHTSHOOT = 5,
+		SHOOTERAIM = 6, SHOOTCONTROL = 7
+
 	};
 
 	enum inputs {
@@ -56,32 +57,33 @@ class Robot: public IterativeRobot {
 	DigitalInput bottomSwitch;
 	DigitalInput topSwitch;
 	Encoder encoder;
+
 	RobotDrive myRobot; // robot drive system
 	Joystick controller; // only joystick
 	JoystickButton rollerButton;
-	Talon leftRollerMotor;
-	Talon rightRollerMotor;
 	Talon shooterAimMotor;
 	Talon rightArmPotMotor;
 	Talon leftArmPotMotor;
+	Talon rightShootMotor;
+	Talon leftShootMotor;
+	Servo shootServo;
+	Encoder shooterAngle;
 public:
 
-	Robot() :
+	Robot():
 			myRobot(LEFTDRIVE, RIGHTDRIVE),	// initialize the RobotDrive to use motor controllers on ports 0 and 1
 			controller(MAINJOY),
 			rollerButton(&controller, SHOOTBALL),
-			leftRollerMotor(LEFTROLLERS),
-			rightRollerMotor(RIGHTROLLERS),
 			shooterAimMotor(SHOOTERAIM),
 			rightArmPotInput(RIGHTPOTCHANNEL),
 			rightArmPotMotor(RIGHTARM),
+
 			leftArmPotInput(LEFTPOTCHANNEL, 360, 10),
 			//TODO: Find offset. either 12 (full scale of linear motion) or 3600 (full scale of angular motion)
 			leftArmPotMotor(LEFTARM),
 			bottomSwitch(MINARM),
 			topSwitch(MAXARM),
 			encoder(CHANNELA, CHANNELB, false, Encoder::EncodingType::k4X)
-
 	{
 		myRobot.SetExpiration(0.1);
 		//myRobot.SetInvertedMotor()
@@ -96,7 +98,7 @@ private:
 	std::string autoSelected;
 
 	void RobotInit() {
-		chooser = new SendableChooser();
+	/*	chooser = new SendableChooser();
 		chooser->AddDefault(autoNameDefault, (void*) &autoNameDefault);
 		chooser->AddObject(autoNameCustom, (void*) &autoNameCustom);
 		SmartDashboard::PutData("Auto Modes", chooser);
@@ -105,7 +107,7 @@ private:
 		//camera->SetExposureManual(50);
 		//camera->SetBrightness(50);
 		//camera->SetWhiteBalanceManual(0);
-		CameraServer::GetInstance()->StartAutomaticCapture(camera);
+		CameraServer::GetInstance()->StartAutomaticCapture(camera); */
 
 	}
 
@@ -157,11 +159,14 @@ private:
 
 #else
 		//Setting up the axes
-		double rightTrigger = controller.GetRawAxis(SHOOTBALL);
-		double rightStickY = controller.GetRawAxis(ARMDIRECTION);
+//		double rightTrigger = controller.GetRawAxis(SHOOTBALL);
+//		double rightStickY = controller.GetRawAxis(ARMDIRECTION);
 		double moveDirection = controller.GetRawAxis(MOVE);
 		double rotateAmount = controller.GetRawAxis(ROTATE);
 		double armMovement = controller.GetRawAxis(ARMDIRECTION);
+		double shootState = controller.GetRawAxis(SHOOTBALL);
+		double pullState = controller.GetRawAxis(PULLBALL);
+		double shootAngle = shooterAngle.Get();
 
 #if DEBUG
 		std::string bDirection = std::to_string(moveDirection);
@@ -175,7 +180,30 @@ private:
 		moveDirection = createDeadzone(moveDirection);
 		rotateAmount = createDeadzone(rotateAmount);
 		armMovement = createDeadzone(armMovement);
-
+#if JOYSTICK
+		//One trigger version
+		if(shootState > 0.5){
+			rightShootMotor.Set(1);
+			leftShootMotor.Set(1);
+		} else {
+			rightShootMotor.Set(-0.6);
+			leftShootMotor.Set(-0.6);
+		}
+#else
+		//Two trigger version
+		if (shootState > 0.5 && pullState < 0.5) {
+			rightShootMotor.Set(1);
+			leftShootMotor.Set(1);
+			shootServo.Set(100);
+		} else if (shootState < 0.5 && pullState > 0.5) {
+			rightShootMotor.Set(-0.3);
+			leftShootMotor.Set(-0.3);
+		} else {
+			rightShootMotor.Set(0);
+			leftShootMotor.Set(0);
+			shootServo.Set(0);
+		}
+#endif
 		double rCurrentPosition = rightArmPotInput.GetAverageVoltage(); //get position value
 //		motorSpeed = (currentPosition - currentSetpoint)*pGain; //convert position error to speed
 //		rightArmPotMotor.Set(motorSpeed); //drive elevator motor
@@ -195,13 +223,16 @@ private:
 		std::string aRotate = std::to_string(rotateAmount);
 		std::string aArm = std::to_string(armMovement);
 		std::string aRightPos = std::to_string(rCurrentPosition);
+		std::string motorSpeed = std::to_string(leftShootMotor.Get());
+		std::string printAngle = std::to_string(shootAngle);
 		//TODO: Add output for other arm potentiometer
 		SmartDashboard::PutString("DB/String 3", ("Dir after: " + aDirection));
 		SmartDashboard::PutString("DB/String 4", ("Rot after: " + aRotate));
 		SmartDashboard::PutString("DB/String 5", ("Arm after: " + aArm));
 		SmartDashboard::PutString("DB/String 6", ("ArmPot: " + aRightPos));
+		SmartDashboard::PutString("DB/String 7", ("Speed: " + motorSpeed));
+		SmartDashboard::PutString("DB/String 8", ("Angle: " + printAngle));
 #endif
-
 		myRobot.ArcadeDrive(moveDirection, rotateAmount, false);
 #endif
 
