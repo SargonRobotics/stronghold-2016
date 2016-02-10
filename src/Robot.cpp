@@ -39,11 +39,14 @@ class Robot: public IterativeRobot {
 		LEFTDRIVE = 0, RIGHTDRIVE = 1,
 		LEFTARM = 2, RIGHTARM = 3,
 		LEFTROLLERS = 4, RIGHTROLLERS = 5,
-		LIGHTSWITCH = 8,
 	};
 
 	enum inputs {
 		LEFTPOTCHANNEL = 0, RIGHTPOTCHANNEL = 1
+	};
+
+	enum relays {
+		LIGHTSWITCH = 3
 	};
 
 //	enum limit_switches {
@@ -106,7 +109,7 @@ private:
 		//IMAQdx Image Processing
 		IMAQdxStartAcquisition(session);
 		while(IsOperatorControl() && IsEnabled()) {
-			if (lightsButton.Get()) {
+			if (lightsButton.Get() == 1) {
 				lightSwitch.Set(Relay::kOn);
 			} else {
 				lightSwitch.Set(Relay::kOff);
