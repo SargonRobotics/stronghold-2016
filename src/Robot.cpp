@@ -30,7 +30,7 @@ class Robot: public IterativeRobot {
 	};
 
 	enum axis {
-		SHOOTBALL = 3, PULLBALL = 2, ARMDIRECTION = 5, MOVE = 1, ROTATE = 0
+		SHOOTBALL = 3, PULLBALL = 2, SHOOTDIRECTION = 5, MOVE = 1, ROTATE = 0
 	};
 
 #endif
@@ -101,22 +101,11 @@ private:
 	 * If using the SendableChooser make sure to add them to the chooser code above as well.
 	 */
 	void AutonomousInit() {
-		autoSelected = *((std::string*) chooser->GetSelected());
-		//std::string autoSelected = SmartDashboard::GetString("Auto Selector", autoNameDefault);
 
-		if (autoSelected == autoNameCustom) {
-			//Custom Auto goes here
-		} else {
-			//Default Auto goes here
-		}
 	}
 
 	void AutonomousPeriodic() {
-		if (autoSelected == autoNameCustom) {
-			//Custom Auto goes here
-		} else {
-			//Default Auto goes here
-		}
+
 	}
 
 	void TeleopInit() {
@@ -143,19 +132,21 @@ private:
 //		double rightStickY = controller.GetRawAxis(ARMDIRECTION);
 		double moveDirection = controller.GetRawAxis(MOVE);
 		double rotateAmount = controller.GetRawAxis(ROTATE);
-		double armMovement = controller.GetRawAxis(ARMDIRECTION);
+		double shooterMovement = controller.GetRawAxis(SHOOTDIRECTION);
 		double shootState = controller.GetRawAxis(SHOOTBALL);
 		double pullState = controller.GetRawAxis(PULLBALL);
 //		Get button
 		bool goalAim = controller.GetRawButton(GOALAIM);
 //		Get encoder angle
 		double count = shooterAngle.Get();
+		double distance = shooterAngle.GetDistance();
+
 
 
 #if DEBUG
 		std::string bDirection = std::to_string(moveDirection);
 		std::string bRotate = std::to_string(rotateAmount);
-		std::string bArm = std::to_string(armMovement);
+		std::string bArm = std::to_string(shooterMovement);
 		SmartDashboard::PutString("DB/String 0", ("Dir before: " + bDirection));
 		SmartDashboard::PutString("DB/String 1", ("Rot before: " + bRotate));
 		SmartDashboard::PutString("DB/String 2", ("Arm before: " + bArm));
@@ -163,7 +154,7 @@ private:
 
 		moveDirection = createDeadzone(moveDirection);
 		rotateAmount = createDeadzone(rotateAmount);
-		armMovement = createDeadzone(armMovement);
+		shooterMovement = createDeadzone(shooterMovement);
 #if JOYSTICK
 		//One trigger version
 		if(shootState > 0.5){
@@ -192,7 +183,7 @@ private:
 #if DEBUG
 		std::string aDirection = std::to_string(moveDirection);
 		std::string aRotate = std::to_string(rotateAmount);
-		std::string aArm = std::to_string(armMovement);
+		std::string aArm = std::to_string(shooterMovement);
 		std::string motorSpeed = std::to_string(leftShootMotor.Get());
 		std::string printAngle = std::to_string(count);
 		SmartDashboard::PutString("DB/String 3", ("Dir after: " + aDirection));
@@ -204,7 +195,26 @@ private:
 		myRobot.ArcadeDrive(moveDirection, rotateAmount, false);
 #endif
 
-		//Arm control.
+		//Auto aim and shoot
+		double aimValue = 4; //arbitrary
+		if (goalAim == 1) {
+			double current = shooterAngle.GetDistance();
+			if (current - 3 > aimValue) {
+				shooterAimMotor.Set(-1);
+			} else if (current + 3 < aimValue) {
+				shooterAimMotor.Set(1);
+			} else {
+				shooterAimMotor.Set(0);
+			}
+		} else {
+			if (shooterMovement > 0.25) {
+				shooterAimMotor.Set(shooterMovement);
+			} else if (shooterMovement < -0.25) {
+				shooterAimMotor.Set(shooterMovement);
+			} else {
+				shooterAimMotor.Set(0);
+			}
+		}
 	}
 
 	void TestPeriodic() {
