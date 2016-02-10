@@ -26,7 +26,7 @@ class Robot: public IterativeRobot {
 	};
 
 	enum buttons {
-
+		GOALAIM = 3
 	};
 
 	enum axis {
@@ -40,52 +40,42 @@ class Robot: public IterativeRobot {
 		LEFTARM = 2, RIGHTARM = 3,
 		LEFTSHOOT = 4, RIGHTSHOOT = 5,
 		SHOOTERAIM = 6, SHOOTCONTROL = 7
-
-	};
-
-	enum inputs {
-		LEFTPOTCHANNEL = 0, RIGHTPOTCHANNEL = 1
 	};
 
 	enum limit_switches { //DIGITAL INPUT
 		MINARM = 0, MAXARM = 1, CHANNELA = 2, CHANNELB = 3,
 };
-//	AnalogInput rightArmPotInput;
-//	AnalogInput leftArmPotInput;
-	AnalogPotentiometer rightArmPotInput;
-	AnalogPotentiometer leftArmPotInput;
+
 	DigitalInput bottomSwitch;
 	DigitalInput topSwitch;
-	Encoder encoder;
-
 	RobotDrive myRobot; // robot drive system
 	Joystick controller; // only joystick
 	JoystickButton rollerButton;
+	JoystickButton autoAimButton;
 	Talon shooterAimMotor;
-	Talon rightArmPotMotor;
-	Talon leftArmPotMotor;
+	Encoder shooterAngle;
 	Talon rightShootMotor;
 	Talon leftShootMotor;
 	Servo shootServo;
-	Encoder shooterAngle;
+	//Arm
+	Talon leftArm;
+	Talon rightArm;
 public:
 
 	Robot():
 			myRobot(LEFTDRIVE, RIGHTDRIVE),	// initialize the RobotDrive to use motor controllers on ports 0 and 1
 			controller(MAINJOY),
 			rollerButton(&controller, SHOOTBALL),
+			autoAimButton(&controller, GOALAIM),
 			shooterAimMotor(SHOOTERAIM),
-			rightArmPotInput(RIGHTPOTCHANNEL),
-			rightArmPotMotor(RIGHTARM),
-
-			leftArmPotInput(LEFTPOTCHANNEL, 360, 10),
-			//TODO: Find offset. either 12 (full scale of linear motion) or 3600 (full scale of angular motion)
-			leftArmPotMotor(LEFTARM),
+			shooterAngle(CHANNELA, CHANNELB, false, Encoder::EncodingType::k4X),
 			bottomSwitch(MINARM),
 			topSwitch(MAXARM),
-			encoder(CHANNELA, CHANNELB, false, Encoder::EncodingType::k4X)
+			rightArm(RIGHTARM),
+			leftArm(LEFTARM)
 	{
 		myRobot.SetExpiration(0.1);
+		shooterAngle.SetMinRate(10);
 		//myRobot.SetInvertedMotor()
 		//myRobot.SetInvertedMotor(LEFTDRIVE, true);
 	}
@@ -98,16 +88,6 @@ private:
 	std::string autoSelected;
 
 	void RobotInit() {
-	/*	chooser = new SendableChooser();
-		chooser->AddDefault(autoNameDefault, (void*) &autoNameDefault);
-		chooser->AddObject(autoNameCustom, (void*) &autoNameCustom);
-		SmartDashboard::PutData("Auto Modes", chooser);
-		CameraServer::GetInstance()->SetQuality(50);
-		std::shared_ptr<USBCamera> camera(new USBCamera ("cam0" , true));
-		//camera->SetExposureManual(50);
-		//camera->SetBrightness(50);
-		//camera->SetWhiteBalanceManual(0);
-		CameraServer::GetInstance()->StartAutomaticCapture(camera); */
 
 	}
 
@@ -158,7 +138,7 @@ private:
 		//		}
 
 #else
-		//Setting up the axes
+//		Setting up the axes
 //		double rightTrigger = controller.GetRawAxis(SHOOTBALL);
 //		double rightStickY = controller.GetRawAxis(ARMDIRECTION);
 		double moveDirection = controller.GetRawAxis(MOVE);
@@ -166,7 +146,11 @@ private:
 		double armMovement = controller.GetRawAxis(ARMDIRECTION);
 		double shootState = controller.GetRawAxis(SHOOTBALL);
 		double pullState = controller.GetRawAxis(PULLBALL);
-		double shootAngle = shooterAngle.Get();
+//		Get button
+		bool goalAim = controller.GetRawButton(GOALAIM);
+//		Get encoder angle
+		double count = shooterAngle.Get();
+
 
 #if DEBUG
 		std::string bDirection = std::to_string(moveDirection);
@@ -204,32 +188,16 @@ private:
 			shootServo.Set(0);
 		}
 #endif
-		double rCurrentPosition = rightArmPotInput.GetAverageVoltage(); //get position value
-//		motorSpeed = (currentPosition - currentSetpoint)*pGain; //convert position error to speed
-//		rightArmPotMotor.Set(motorSpeed); //drive elevator motor
-
-		double lCurrentPosition = rightArmPotInput.GetAverageVoltage(); //get position value
-		//		motorSpeed = (currentPosition - currentSetpoint)*pGain; //convert position error to speed
-		//		rightArmPotMotor.Set(motorSpeed); //drive elevator motor
-
-		//TODO: See debug todo below.
-		//TODO: Test the input we get from arm potentiometers to make sense of them.
-		//TODO: Very cautiously give the motor an input and hope it doesn't break.
-		//TODO: Add error checking for if the position of the arms differs by too much.
-		//TODO: Add controls for moving the arms together.
 
 #if DEBUG
 		std::string aDirection = std::to_string(moveDirection);
 		std::string aRotate = std::to_string(rotateAmount);
 		std::string aArm = std::to_string(armMovement);
-		std::string aRightPos = std::to_string(rCurrentPosition);
 		std::string motorSpeed = std::to_string(leftShootMotor.Get());
-		std::string printAngle = std::to_string(shootAngle);
-		//TODO: Add output for other arm potentiometer
+		std::string printAngle = std::to_string(count);
 		SmartDashboard::PutString("DB/String 3", ("Dir after: " + aDirection));
 		SmartDashboard::PutString("DB/String 4", ("Rot after: " + aRotate));
 		SmartDashboard::PutString("DB/String 5", ("Arm after: " + aArm));
-		SmartDashboard::PutString("DB/String 6", ("ArmPot: " + aRightPos));
 		SmartDashboard::PutString("DB/String 7", ("Speed: " + motorSpeed));
 		SmartDashboard::PutString("DB/String 8", ("Angle: " + printAngle));
 #endif
