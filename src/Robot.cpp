@@ -1,6 +1,8 @@
 #include "WPILib.h"
 #include <cstdlib>
 #include <sstream>
+#include <unistd.h>
+#include <stdio.h>
 
 #define ISJOYSTICK 0
 #define DEBUG 1
@@ -53,13 +55,13 @@ class Robot: public IterativeRobot {
 //		MINARM = 0, LEFTARM = 1, RIGHTARM = 2
 //	};
 
-//IMAQdx Image Processing
 	IMAQdxSession session;
 	Image *frame;
 	IMAQdxError imaqError;
 	Relay lightSwitch;
 	Joystick controller; // only joystick
 	JoystickButton lightsButton;
+
 
 public:
 	Robot() :
@@ -75,6 +77,7 @@ private:
 	LiveWindow *lw = LiveWindow::GetInstance();
 
 	void RobotInit() {
+//		Striaght USB cam code
 //		CameraServer::GetInstance()->SetQuality(50);
 //		std::shared_ptr<USBCamera> camera(new USBCamera ("cam0" , true));
 //		camera->SetExposureManual(30);
@@ -91,6 +94,9 @@ private:
 		if(imaqError != IMAQdxErrorSuccess) {
 			DriverStation::ReportError("IMAQdxConfigureGrab error: " + std::to_string((long)imaqError) + "\n");
 		}
+		if (fork() == 0) {
+			system("home/lvuser/grip &");
+		}
 
 	}
 
@@ -99,6 +105,12 @@ private:
 	}
 
 	void AutonomousPeriodic() {
+		auto grip = NetworkTable::GetTable("grip");
+		auto areas = grip->GetNumberArray("targets/area", llvm::ArrayRef<double>());
+		for (auto area : areas) {
+			std::cout << "Got contour with area=" << area << std::endl;
+		}
+		//Use areas to determine distance and "green" shooting area
 
 	}
 
