@@ -63,10 +63,13 @@ public:
 		lightSwitch(LIGHTSWITCH),
 		controller(MAINJOY),
 		lightsButton(&controller, LIGHTS)
+
 	{
+
 	}
 
 private:
+	LiveWindow *lw = LiveWindow::GetInstance();
 
 	void RobotInit() {
 //		CameraServer::GetInstance()->SetQuality(50);
@@ -100,11 +103,10 @@ private:
 	}
 
 	void TeleopPeriodic() {
-		bool lightitup = controller.GetRawButton(4);
 		//IMAQdx Image Processing
 		IMAQdxStartAcquisition(session);
 		while(IsOperatorControl() && IsEnabled()) {
-			if (lightitup) {
+			if (lightsButton.Get()) {
 				lightSwitch.Set(Relay::kOn);
 			} else {
 				lightSwitch.Set(Relay::kOff);
@@ -125,6 +127,7 @@ private:
 	}
 
 	void TestPeriodic() {
+		lw->Run();
 	}
 
 };
