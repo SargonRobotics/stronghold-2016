@@ -39,7 +39,8 @@ class Robot: public IterativeRobot {
 	enum motors { //PWM
 		LEFTDRIVE = 0, RIGHTDRIVE = 1,
 		LEFTARM = 2, RIGHTARM = 3,
-		LEFTROLLERS = 4, RIGHTROLLERS = 5,
+		LEFTSHOOT = 4, RIGHTSHOOT = 5,
+		SHOOTSERVO = 7
 	};
 
 	enum inputs {  //ANALOG INPUT
@@ -58,10 +59,11 @@ class Robot: public IterativeRobot {
 	RobotDrive myRobot; // robot drive system
 	Joystick controller; // only joystick
 	JoystickButton rollerButton;
-	Talon leftRollerMotor;
-	Talon rightRollerMotor;
+	Talon leftShootMotor;
+	Talon rightShootMotor;
 	Talon rightArmPotMotor;
 	Talon leftArmPotMotor;
+	Servo shootServo;
 
 	const double pLeftGain = 0.405; //proportional speed constant
 	const double pRightGain = pLeftGain;
@@ -72,8 +74,8 @@ public:
 			myRobot(LEFTDRIVE, RIGHTDRIVE),	// initialize the RobotDrive to use motor controllers on ports 0 and 1
 			controller(MAINJOY),
 			rollerButton(&controller, SHOOTBALL),
-			leftRollerMotor(LEFTROLLERS),
-			rightRollerMotor(RIGHTROLLERS),
+			leftShootMotor(LEFTSHOOT),
+			rightShootMotor(RIGHTSHOOT),
 			encoder(CHANNELA, CHANNELB, false, Encoder::EncodingType::k4X),
 			bottomSwitch(MINARM),
 			topSwitch(MAXARM),
@@ -81,7 +83,8 @@ public:
 			//TODO: Find offset. either 12 (full scale of linear motion) or 3600 (full scale of angular motion)
 			rightArmPotMotor(RIGHTARM),
 			leftArmPotInput(LEFTPOTCHANNEL, 360, 10),
-			leftArmPotMotor(LEFTARM)
+			leftArmPotMotor(LEFTARM),
+			shootServo(SHOOTSERVO)
 	{
 		myRobot.SetExpiration(0.1);
 		//myRobot.SetInvertedMotor()
@@ -282,6 +285,21 @@ private:
 			amount /= (1 - deadzone);
 		}
 		return amount;
+	}
+
+	void shootBall(){
+		static int tmp = 0;
+
+		rightShootMotor.Set(1);
+		leftShootMotor.Set(1);
+
+		if(tmp == 500){
+			shootServo.Set(0);
+			tmp = 0;
+		} else {
+			shootServo.Set(180);
+			tmp += 25;
+		}
 	}
 };
 
