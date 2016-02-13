@@ -8,7 +8,7 @@ init_v = 8.166
 
 print("Angle\tDist 1\tDist 2")
 for i in range(53, 81):
-    angle = i / 180 * math.pi
+    angle = i / 180.0 * math.pi
     a = -9.8*.5
     b = init_v * math.sin(angle)
     c = -height
