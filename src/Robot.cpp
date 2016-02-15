@@ -1,5 +1,4 @@
 #include "WPILib.h"
-#include <cstdlib>
 #include <sstream>
 
 #define ISJOYSTICK 0
@@ -64,6 +63,7 @@ class Robot: public IterativeRobot {
 	Talon rightArmPotMotor;
 	Talon leftArmPotMotor;
 	Servo shootServo;
+	Timer timer;
 
 	const double pLeftGain = 0.405; //proportional speed constant
 	const double pRightGain = pLeftGain;
@@ -84,7 +84,8 @@ public:
 			rightArmPotMotor(RIGHTARM),
 			leftArmPotInput(LEFTPOTCHANNEL, 360, 10),
 			leftArmPotMotor(LEFTARM),
-			shootServo(SHOOTSERVO)
+			shootServo(SHOOTSERVO),
+			timer()
 	{
 		myRobot.SetExpiration(0.1);
 		//myRobot.SetInvertedMotor()
@@ -96,7 +97,7 @@ private:
 	SendableChooser *chooser;
 	const std::string autoNameDefault = "Default";
 	const std::string autoNameCustom = "My Auto";
-	std::string autoSelected;
+	void* autoSelected;
 
 	void RobotInit() {
 		chooser = new SendableChooser();
@@ -108,8 +109,7 @@ private:
 		//camera->SetExposureManual(50);
 		//camera->SetBrightness(50);
 		//camera->SetWhiteBalanceManual(0);
-		CameraServer::GetInstance()->StartAutomaticCapture(camera);
-
+		CameraServer::GetInstance()->StartAutomaticCapture("cam0");
 	}
 
 	/**
@@ -122,10 +122,13 @@ private:
 	 * If using the SendableChooser make sure to add them to the chooser code above as well.
 	 */
 	void AutonomousInit() {
-		autoSelected = *((std::string*) chooser->GetSelected());
-		std::string autoSelected = SmartDashboard::GetString("Auto Selector", autoNameDefault);
+		autoSelected = chooser->GetSelected();
+		timer.Reset();
+		timer.Start();
 
-		if (autoSelected == autoNameCustom) {
+		shootServo.Set(0);
+
+		if (autoSelected == &autoNameCustom) {
 			//Custom Auto goes here
 		} else {
 			//Default Auto goes here
@@ -133,10 +136,23 @@ private:
 	}
 
 	void AutonomousPeriodic() {
-		if (autoSelected == autoNameCustom) {
-			//Custom Auto goes here
+		std::string cTime = std::to_string(timer.Get());
+		SmartDashboard::PutString("DB/String 0", cTime);
+
+		double currentTime = timer.Get();
+
+		if (autoSelected == &autoNameDefault) {
+			if(currentTime < 2) {
+				myRobot.ArcadeDrive(0, 0, false);
+			} else if(currentTime < 4) {
+				myRobot.ArcadeDrive(0.5, 0, false);
+			} else if(currentTime < 6){
+				myRobot.ArcadeDrive(1, 0, false);
+			} else {
+				myRobot.ArcadeDrive(0, 0, false);
+			}
 		} else {
-			//Default Auto goes here
+			myRobot.ArcadeDrive(0, 0.4, false);
 		}
 	}
 
@@ -266,6 +282,7 @@ private:
 #endif
 
 		myRobot.ArcadeDrive(moveDirection, rotateAmount, false);
+
 #endif
 	}
 
@@ -285,21 +302,6 @@ private:
 			amount /= (1 - deadzone);
 		}
 		return amount;
-	}
-
-	void shootBall(){
-		static int tmp = 0;
-
-		rightShootMotor.Set(1);
-		leftShootMotor.Set(1);
-
-		if(tmp == 500){
-			shootServo.Set(0);
-			tmp = 0;
-		} else {
-			shootServo.Set(180);
-			tmp += 25;
-		}
 	}
 };
 
