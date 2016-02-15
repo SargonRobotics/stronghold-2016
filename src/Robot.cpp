@@ -1,5 +1,4 @@
 #include "WPILib.h"
-#include <cstdlib>
 #include <sstream>
 
 #define ISJOYSTICK 0
@@ -39,7 +38,8 @@ class Robot: public IterativeRobot {
 	enum motors { //PWM
 		LEFTDRIVE = 0, RIGHTDRIVE = 1,
 		LEFTARM = 2, RIGHTARM = 3,
-		LEFTROLLERS = 4, RIGHTROLLERS = 5,
+		LEFTSHOOT = 4, RIGHTSHOOT = 5,
+		SHOOTSERVO = 7
 	};
 
 	enum inputs {  //ANALOG INPUT
@@ -58,10 +58,12 @@ class Robot: public IterativeRobot {
 	RobotDrive myRobot; // robot drive system
 	Joystick controller; // only joystick
 	JoystickButton rollerButton;
-	Talon leftRollerMotor;
-	Talon rightRollerMotor;
+	Talon leftShootMotor;
+	Talon rightShootMotor;
 	Talon rightArmPotMotor;
 	Talon leftArmPotMotor;
+	Servo shootServo;
+	Timer timer;
 
 	const double pLeftGain = 0.405; //proportional speed constant
 	const double pRightGain = pLeftGain;
@@ -72,8 +74,8 @@ public:
 			myRobot(LEFTDRIVE, RIGHTDRIVE),	// initialize the RobotDrive to use motor controllers on ports 0 and 1
 			controller(MAINJOY),
 			rollerButton(&controller, SHOOTBALL),
-			leftRollerMotor(LEFTROLLERS),
-			rightRollerMotor(RIGHTROLLERS),
+			leftShootMotor(LEFTSHOOT),
+			rightShootMotor(RIGHTSHOOT),
 			encoder(CHANNELA, CHANNELB, false, Encoder::EncodingType::k4X),
 			bottomSwitch(MINARM),
 			topSwitch(MAXARM),
@@ -81,7 +83,9 @@ public:
 			//TODO: Find offset. either 12 (full scale of linear motion) or 3600 (full scale of angular motion)
 			rightArmPotMotor(RIGHTARM),
 			leftArmPotInput(LEFTPOTCHANNEL, 360, 10),
-			leftArmPotMotor(LEFTARM)
+			leftArmPotMotor(LEFTARM),
+			shootServo(SHOOTSERVO),
+			timer()
 	{
 		myRobot.SetExpiration(0.1);
 		//myRobot.SetInvertedMotor()
@@ -93,7 +97,7 @@ private:
 	SendableChooser *chooser;
 	const std::string autoNameDefault = "Default";
 	const std::string autoNameCustom = "My Auto";
-	std::string autoSelected;
+	void* autoSelected;
 
 	void RobotInit() {
 		chooser = new SendableChooser();
@@ -105,8 +109,7 @@ private:
 		//camera->SetExposureManual(50);
 		//camera->SetBrightness(50);
 		//camera->SetWhiteBalanceManual(0);
-		CameraServer::GetInstance()->StartAutomaticCapture(camera);
-
+		CameraServer::GetInstance()->StartAutomaticCapture("cam0");
 	}
 
 	/**
@@ -119,10 +122,13 @@ private:
 	 * If using the SendableChooser make sure to add them to the chooser code above as well.
 	 */
 	void AutonomousInit() {
-		autoSelected = *((std::string*) chooser->GetSelected());
-		std::string autoSelected = SmartDashboard::GetString("Auto Selector", autoNameDefault);
+		autoSelected = chooser->GetSelected();
+		timer.Reset();
+		timer.Start();
 
-		if (autoSelected == autoNameCustom) {
+		shootServo.Set(0);
+
+		if (autoSelected == &autoNameCustom) {
 			//Custom Auto goes here
 		} else {
 			//Default Auto goes here
@@ -130,10 +136,23 @@ private:
 	}
 
 	void AutonomousPeriodic() {
-		if (autoSelected == autoNameCustom) {
-			//Custom Auto goes here
+		std::string cTime = std::to_string(timer.Get());
+		SmartDashboard::PutString("DB/String 0", cTime);
+
+		double currentTime = timer.Get();
+
+		if (autoSelected == &autoNameDefault) {
+			if(currentTime < 2) {
+				myRobot.ArcadeDrive(0, 0, false);
+			} else if(currentTime < 4) {
+				myRobot.ArcadeDrive(0.5, 0, false);
+			} else if(currentTime < 6){
+				myRobot.ArcadeDrive(1, 0, false);
+			} else {
+				myRobot.ArcadeDrive(0, 0, false);
+			}
 		} else {
-			//Default Auto goes here
+			myRobot.ArcadeDrive(0, 0.4, false);
 		}
 	}
 
@@ -263,6 +282,7 @@ private:
 #endif
 
 		myRobot.ArcadeDrive(moveDirection, rotateAmount, false);
+
 #endif
 	}
 
