@@ -13,7 +13,7 @@ class Robot: public IterativeRobot {
 	};
 
 	enum buttons {
-		SHOOTBALL = 1, ARMUP = 6, ARMDOWN = 4
+		SHOOTBALL = 1, GOALAIM = 2, ARMDOWN = 4, ARMUP = 6,
 	};
 
 	enum axis {
@@ -26,70 +26,74 @@ class Robot: public IterativeRobot {
 	};
 
 	enum buttons { //CONTROLLER
-
+		GOALAIM = 3
 	};
 
 	enum axis {  //CONTROLLER
-		SHOOTBALL = 3, ARMDIRECTION = 5, MOVE = 1, ROTATE = 0
+		SHOOTBALL = 3, ARMDIRECTION = 5, MOVE = 1, ROTATE = 0, PULLBALL = 2, SHOOTDIRECTION = 5
 	};
 
 #endif
 
 	enum motors { //PWM
-		LEFTDRIVE = 0, RIGHTDRIVE = 1,
-		LEFTARM = 2, RIGHTARM = 3,
-		LEFTSHOOT = 4, RIGHTSHOOT = 5,
-		SHOOTSERVO = 7
-	};
-
-	enum inputs {  //ANALOG INPUT
-		LEFTPOTCHANNEL = 0, RIGHTPOTCHANNEL = 1
+		FLEFTDRIVE = 0, FRIGHTDRIVE = 1,
+		BLEFTDRIVE = 2, BRIGHTDRIVE = 3,
+		ARM = 4, SHOOTER = 5,
+		LEFTSHOOT = 6, RIGHTSHOOT = 7,
+		SHOOTSERVO = 8
 	};
 
 	enum digitalinputs { //DIGITAL INPUT
-		MINARM = 0, MAXARM = 1, CHANNELA = 2, CHANNELB = 3
+		MINARM = 0, MAXARM = 1,
+		SHOOTERCHANNELA = 2, SHOOTERCHANNELB = 3,
+		ARMCHANNELA = 4, ARMCHANNELB = 5
 	};
 
 	AnalogPotentiometer rightArmPotInput;
 	AnalogPotentiometer leftArmPotInput;
 	DigitalInput bottomSwitch;
 	DigitalInput topSwitch;
-	Encoder encoder;
+	Encoder shooterPos;
+	Encoder armPos;
 	RobotDrive myRobot; // robot drive system
 	Joystick controller; // only joystick
 	JoystickButton rollerButton;
+	JoystickButton armUpButton;
+	JoystickButton armDownButton;
+	JoystickButton autoAimButton;
 	Talon leftShootMotor;
 	Talon rightShootMotor;
-	Talon rightArmPotMotor;
-	Talon leftArmPotMotor;
+	Talon shooterAimMotor;
+	Talon armMotor;
 	Servo shootServo;
 	Timer timer;
 
-	const double pLeftGain = 0.405; //proportional speed constant
-	const double pRightGain = pLeftGain;
-	//TODO: Find right potentiometer's pGain
 public:
 
 	Robot() :
-			myRobot(LEFTDRIVE, RIGHTDRIVE),	// initialize the RobotDrive to use motor controllers on ports 0 and 1
+			myRobot(FLEFTDRIVE, FRIGHTDRIVE, BLEFTDRIVE, BRIGHTDRIVE),	// initialize the RobotDrive to use motor controllers on ports 0-3
 			controller(MAINJOY),
 			rollerButton(&controller, SHOOTBALL),
+#if JOYSTICK
+			armUpButton(&controller, ARMUP),
+			armDownButton(&controller, ARMDOWN),
+#endif
+			autoAimButton(&controller, GOALAIM),
 			leftShootMotor(LEFTSHOOT),
 			rightShootMotor(RIGHTSHOOT),
-			encoder(CHANNELA, CHANNELB, false, Encoder::EncodingType::k4X),
+			shooterPos(SHOOTERCHANNELA, SHOOTERCHANNELB, false, Encoder::EncodingType::k4X),
+			armPos(ARMCHANNELA, ARMCHANNELB, false, Encoder::EncodingType::k4X),
 			bottomSwitch(MINARM),
 			topSwitch(MAXARM),
-			rightArmPotInput(RIGHTPOTCHANNEL, 360, 10),
-			//TODO: Find offset. either 12 (full scale of linear motion) or 3600 (full scale of angular motion)
-			rightArmPotMotor(RIGHTARM),
-			leftArmPotInput(LEFTPOTCHANNEL, 360, 10),
-			leftArmPotMotor(LEFTARM),
+			shooterAimMotor(SHOOTER),
+			armMotor(ARM),
 			shootServo(SHOOTSERVO),
 			timer()
 	{
 		myRobot.SetExpiration(0.1);
-		//myRobot.SetInvertedMotor()
-		//myRobot.SetInvertedMotor(LEFTDRIVE, true);
+		//myRobot.SetInvertedMotor(BLEFTDRIVE, true);
+		//myRobot.SetInvertedMotor(BRIGHTDRIVE, true);
+
 	}
 
 private:
@@ -136,6 +140,7 @@ private:
 	}
 
 	void AutonomousPeriodic() {
+		//TODO: Add short, portcullis, drawbridge, cheval de frise, and sally port
 		std::string cTime = std::to_string(timer.Get());
 		SmartDashboard::PutString("DB/String 0", cTime);
 
@@ -161,127 +166,111 @@ private:
 
 	void TeleopPeriodic() {
 #if JOYSTICK
-		//Driving
+//		Driving
 		myRobot.ArcadeDrive(controller);
 
-		//Control for ball capture/shooting.
-		//		if (rollerButton.Get()){
-		//			leftRollerMotor.Set(1);
-		//			rightRollerMotor.Set(1);
-		//		}
-		//		else {
-		//			leftRollerMotor.Set(-1);
-		//			rightRollerMotor.Set(-1);
-		//		}
+//		One trigger shooter
+		if(shootState > 0.5){
+			rightShootMotor.Set(1);
+			leftShootMotor.Set(1);
+		} else {
+			rightShootMotor.Set(-0.6);
+			leftShootMotor.Set(-0.6);
+		}
 
+//		Arm Code
+		if (armUpButton.Get() && (armDownButton.Get = 0)) {
+			armMotor.Set(1);
+		} else if (armDownButton.Get() && (armUpButton.Get = 0)) {
+			armMotor.Set(-1);
+		} else {
+			armMotor.Set(0);
+		}
 #else
 		//Setting up the axes
 		double rightTrigger = controller.GetRawAxis(SHOOTBALL);
-		double rightStickY = controller.GetRawAxis(ARMDIRECTION);
 		double moveDirection = controller.GetRawAxis(MOVE);
 		double rotateAmount = controller.GetRawAxis(ROTATE);
+		double shooterMovement = controller.GetRawAxis(SHOOTDIRECTION);
 		double armMovement = controller.GetRawAxis(ARMDIRECTION);
 
 #if DEBUG
 		std::string bDirection = std::to_string(moveDirection);
 		std::string bRotate = std::to_string(rotateAmount);
+		std::string bShooter = std::to_string(shooterMovement);
 		std::string bArm = std::to_string(armMovement);
 		SmartDashboard::PutString("DB/String 0", ("Dir before: " + bDirection));
 		SmartDashboard::PutString("DB/String 1", ("Rot before: " + bRotate));
-		SmartDashboard::PutString("DB/String 2", ("Arm before: " + bArm));
+		SmartDashboard::PutString("DB/String 2", ("Shooter before: " + bShooter));
+		SmartDashboard::PutString("DB/String 3", ("Arm before: " + bArm));
 #endif
 
 		moveDirection = createDeadzone(moveDirection);
 		rotateAmount = createDeadzone(rotateAmount);
+		shooterMovement = createDeadzone(shooterMovement);
 		armMovement = createDeadzone(armMovement);
-
-		int index = 0;
-		double currentSetpoint; //holds desired setpoint
-		const int size = 4; //number of setpoints. ground, lowered portcullis, raised portcullis, max
-		const double setpoints[size] = {0.0, 0.5, 4.0, 4.5}; //setpoint locations
-		//TODO: Find upper three setpoints
-		currentSetpoint = setpoints[0]; //set to first setpoint
-
-//		double rCurrentPosition = rightArmPotInput.GetAverageVoltage(); //get position value
-//		motorSpeed = (currentPosition - currentSetpoint)*pGain; //convert position error to speed
-//		rightArmPotMotor.Set(motorSpeed); //drive elevator motor
-
-//		double lCurrentPosition = rightArmPotInput.GetAverageVoltage(); //get position value
-		//		motorSpeed = (currentPosition - currentSetpoint)*pGain; //convert position error to speed
-		//		rightArmPotMotor.Set(motorSpeed); //drive elevator motor
-
-		//TODO: See debug todo below.
-		//TODO: Test the input we get from arm potentiometers to make sense of them.
-		//TODO: Very cautiously give the motor an input and hope it doesn't break.
-		//TODO: Add error checking for if the position of the arms differs by too much.
-		//TODO: Add controls for moving the arms together.
-
-		double lCurrentPosition = leftArmPotInput.Get();
-		double rCurrentPosition = rightArmPotInput.Get();
-		std::string potStatement;
-		double armDifference = lCurrentPosition - rCurrentPosition; //accounts for difference in arm height
-
-		//Sets motor speeds based on armMovement axis
-		//If unequal. equalizes height of arm
-		if ((fabs(armMovement) > .2) && fabs(armDifference) < ARMERROR) { //operator moving and arm heights equal
-			//Left DART
-			double lmotorSpeed = (lCurrentPosition - currentSetpoint)*pLeftGain; //convert position error to speed
-			leftArmPotMotor.Set(lmotorSpeed);
-			//Right Dart
-			double rmotorSpeed = (rCurrentPosition - currentSetpoint)*pRightGain; //convert position error to speed
-			rightArmPotMotor.Set(rmotorSpeed);
-		} else if (fabs(armDifference) >= ARMERROR) { //operator moving and arm heights unequal
-			//Try to move arms back together.
-			currentSetpoint = (lCurrentPosition + rCurrentPosition) / 2;
-
-			//Left DART
-			double lmotorSpeed = (lCurrentPosition - currentSetpoint)*pLeftGain; //convert position error to speed
-			leftArmPotMotor.Set(lmotorSpeed);
-			//Right Dart
-			double rmotorSpeed = (rCurrentPosition - currentSetpoint)*pRightGain; //convert position error to speed
-			rightArmPotMotor.Set(rmotorSpeed);
-		} else { //Operator not moving and arm heights equal
-			//TODO: Find output to keep height
-			//Add buttons for arm height here
-			double lmotorSpeed = 0; //Left DART
-			leftArmPotMotor.Set(lmotorSpeed);
-			double rmotorSpeed = 0; //Right Dart
-			rightArmPotMotor.Set(rmotorSpeed);
-		}
 
 #if DEBUG
 		std::string aDirection = std::to_string(moveDirection);
 		std::string aRotate = std::to_string(rotateAmount);
 		std::string aArm = std::to_string(armMovement);
-		std::string aLeftPos = std::to_string(lCurrentPosition);
-		std::string aRightPos = std::to_string(rCurrentPosition);
 		SmartDashboard::PutString("DB/String 3", ("Dir after: " + aDirection));
 		SmartDashboard::PutString("DB/String 4", ("Rot after: " + aRotate));
 		SmartDashboard::PutString("DB/String 5", ("Arm after: " + aArm));
-		SmartDashboard::PutString("DB/String 6", ("ArmPot: " + aLeftPos));
-		SmartDashboard::PutString("DB/String 7", ("ArmPot: " + aRightPos));
-
-		//Tell user if potentiometer is off
-		double acceptableErrorLimit = 0.25;
-		if ((bottomSwitch.Get() == 0) && (lCurrentPosition > acceptableErrorLimit) && (rCurrentPosition > acceptableErrorLimit)) {
-			std::string potStatement = "BOTH "; //both pots off, left pot error printed first
-			SmartDashboard::PutString("DB/String 8", ("PotError " + potStatement +
-					aLeftPos + " " + aRightPos));
-		} else if ((bottomSwitch.Get() == 0) && (rCurrentPosition > acceptableErrorLimit)) {
-			std::string potStatement = "RIGHT "; //right pot off
-			SmartDashboard::PutString("DB/String 8 ", ("PotError " + potStatement +
-					aRightPos));
-		} else if ((bottomSwitch.Get() == 0) && (lCurrentPosition > acceptableErrorLimit)) {
-			std::string potStatement = "LEFT ";  //left pot off
-			SmartDashboard::PutString("DB/String 8", ("PotError " + potStatement +
-					aRightPos));
-		} else { //both pots accurate
-			std::string potStatement = "NONE";
-			SmartDashboard::PutString("DB/String 8", ("PotError " + potStatement));
-		}
 #endif
 
 		myRobot.ArcadeDrive(moveDirection, rotateAmount, false);
+
+//		Shooter Code
+
+		double shootState = controller.GetRawAxis(SHOOTBALL);
+		double pullState = controller.GetRawAxis(PULLBALL);
+//		Get shooter encoder angle
+		double shooterCount = shooterPos.Get();
+		double shooterDistance = shooterPos.GetDistance();
+
+//		Two trigger version
+		if (shootState > 0.5 && pullState < 0.5) {
+			rightShootMotor.Set(1);
+			leftShootMotor.Set(1);
+			shootServo.Set(100);
+		} else if (shootState < 0.5 && pullState > 0.5) {
+			rightShootMotor.Set(-0.3);
+			leftShootMotor.Set(-0.3);
+		} else {
+			rightShootMotor.Set(0);
+			leftShootMotor.Set(0);
+			shootServo.Set(0);
+		}
+
+//		Auto aim and shoot
+		double aimValue = 4; //arbitrary
+		if (autoAimButton.Get()) {
+			double current = shooterPos.GetDistance();
+			if (current - 3 > aimValue) {
+				shooterAimMotor.Set(-1);
+			} else if (current + 3 < aimValue) {
+				shooterAimMotor.Set(1);
+			} else {
+				shooterAimMotor.Set(0);
+			}
+		} else {
+			if (shooterMovement == 0) {
+				shooterAimMotor.Set(0);
+			} else {
+				shooterAimMotor.Set(shooterMovement);
+			}
+		}
+
+//		Arm Code
+		double armCount = armPos.Get();
+		double armDistance = armPos.GetDistance();
+
+		if (armMovement == 0) {
+			armMotor.Set(0);
+		} else {
+			armMotor.Set(armMovement);
+		}
 
 #endif
 	}
