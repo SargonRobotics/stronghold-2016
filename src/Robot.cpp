@@ -49,8 +49,6 @@ class Robot: public IterativeRobot {
 		ARMCHANNELA = 4, ARMCHANNELB = 5
 	};
 
-	AnalogPotentiometer rightArmPotInput;
-	AnalogPotentiometer leftArmPotInput;
 	DigitalInput bottomSwitch;
 	DigitalInput topSwitch;
 	Encoder shooterPos;
@@ -58,8 +56,10 @@ class Robot: public IterativeRobot {
 	RobotDrive myRobot; // robot drive system
 	Joystick controller; // only joystick
 	JoystickButton rollerButton;
+#if JOYSTICK
 	JoystickButton armUpButton;
 	JoystickButton armDownButton;
+#endif
 	JoystickButton autoAimButton;
 	Talon leftShootMotor;
 	Talon rightShootMotor;
