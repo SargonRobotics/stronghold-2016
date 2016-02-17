@@ -97,6 +97,11 @@ private:
 	SendableChooser *chooser;
 	const std::string autoNameDefault = "Default";
 	const std::string autoNameCustom = "My Auto";
+	const std::string autoShortDef = "Short/Drive Over Defenses";
+	const std::string autoPortcul = "Portcullis";
+	const std::string autoDraw = "Draw Bridge";
+	const std::string autoSall = "Sally Port";
+	const std::string autoMid = "Move Balls to Our Side";
 	void* autoSelected;
 
 	void RobotInit() {
@@ -150,6 +155,12 @@ private:
 				myRobot.ArcadeDrive(1, 0, false);
 			} else {
 				myRobot.ArcadeDrive(0, 0, false);
+			}
+		} else if(autoSelected == &autoShortDef){
+			if(currentTime < 3){
+				myRobot.ArcadeDrive(0.5, 0, false);
+			} else if(currentTime < 5){
+				myRobot.ArcadeDrive(0.5, 0, false);
 			}
 		} else {
 			myRobot.ArcadeDrive(0, 0.4, false);
