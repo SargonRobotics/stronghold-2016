@@ -30,23 +30,21 @@ class Robot: public IterativeRobot {
 	};
 
 	enum axis {  //CONTROLLER
-		SHOOTBALL = 3, ARMDIRECTION = 5, MOVE = 1, ROTATE = 0, PULLBALL = 2, SHOOTDIRECTION = 5
+		SHOOTBALL = 3, ARMDIRECTION = 5, MOVE = 1, ROTATE = 0, PULLBALL = 2, SHOOTDIRECTION = 4
 	};
 
 #endif
 
 	enum motors { //PWM
-		FLEFTDRIVE = 0, FRIGHTDRIVE = 1,
-		BLEFTDRIVE = 2, BRIGHTDRIVE = 3,
-		ARM = 4, SHOOTER = 5,
-		LEFTSHOOT = 6, RIGHTSHOOT = 7,
-		SHOOTSERVO = 8
+		LEFTDRIVE = 0, RIGHTDRIVE = 1,
+		LEFTSHOOT =2, RIGHTSHOOT = 3,
+		SHOOTSERVO = 6,
+		ARM = 8, SHOOTER = 9
 	};
 
 	enum digitalinputs { //DIGITAL INPUT
-		MINARM = 0, MAXARM = 1,
-		SHOOTERCHANNELA = 2, SHOOTERCHANNELB = 3,
-		ARMCHANNELA = 4, ARMCHANNELB = 5
+		SHOOTERCHANNELA = 0, SHOOTERCHANNELB = 1,
+		ARMCHANNELA = 2, ARMCHANNELB = 3
 	};
 
 	DigitalInput bottomSwitch;
@@ -71,7 +69,7 @@ class Robot: public IterativeRobot {
 public:
 
 	Robot() :
-			myRobot(FLEFTDRIVE, FRIGHTDRIVE, BLEFTDRIVE, BRIGHTDRIVE),	// initialize the RobotDrive to use motor controllers on ports 0-3
+			myRobot(LEFTDRIVE, RIGHTDRIVE),	// initialize the RobotDrive to use motor controllers on ports 0-3
 			controller(MAINJOY),
 			rollerButton(&controller, SHOOTBALL),
 #if JOYSTICK
@@ -83,8 +81,6 @@ public:
 			rightShootMotor(RIGHTSHOOT),
 			shooterPos(SHOOTERCHANNELA, SHOOTERCHANNELB, false, Encoder::EncodingType::k4X),
 			armPos(ARMCHANNELA, ARMCHANNELB, false, Encoder::EncodingType::k4X),
-			bottomSwitch(MINARM),
-			topSwitch(MAXARM),
 			shooterAimMotor(SHOOTER),
 			armMotor(ARM),
 			shootServo(SHOOTSERVO),
@@ -222,12 +218,13 @@ private:
 		myRobot.ArcadeDrive(moveDirection, rotateAmount, false);
 
 //		Shooter Code
-
 		double shootState = controller.GetRawAxis(SHOOTBALL);
 		double pullState = controller.GetRawAxis(PULLBALL);
 //		Get shooter encoder angle
 		double shooterCount = shooterPos.Get();
 		double shooterDistance = shooterPos.GetDistance();
+		double shooterMin = 0;
+		double shooterMax = 1000
 
 //		Two trigger version
 		if (shootState > 0.5 && pullState < 0.5) {
@@ -247,9 +244,9 @@ private:
 		double aimValue = 4; //arbitrary
 		if (autoAimButton.Get()) {
 			double current = shooterPos.GetDistance();
-			if (current - 3 > aimValue) {
+			if ((current - 3 > aimValue) && (current > shooterMin)) {
 				shooterAimMotor.Set(-1);
-			} else if (current + 3 < aimValue) {
+			} else if ((current + 3 < aimValue) && (current < shooterMax)) {
 				shooterAimMotor.Set(1);
 			} else {
 				shooterAimMotor.Set(0);
@@ -265,6 +262,8 @@ private:
 //		Arm Code
 		double armCount = armPos.Get();
 		double armDistance = armPos.GetDistance();
+		double armMin = 0;
+		double armMax = 1000;
 
 		if (armMovement == 0) {
 			armMotor.Set(0);
