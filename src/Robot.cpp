@@ -26,7 +26,7 @@ class Robot: public IterativeRobot {
 	};
 
 	enum buttons { //CONTROLLER
-		GOALAIM = 3
+		GOALAIM = 3, LIGHTS = 4
 	};
 
 	enum axis {  //CONTROLLER
@@ -47,6 +47,10 @@ class Robot: public IterativeRobot {
 		ARMCHANNELA = 2, ARMCHANNELB = 3
 	};
 
+	enum relays {
+		LIGHTSWITCH = 3
+	};
+
 	DigitalInput bottomSwitch;
 	DigitalInput topSwitch;
 	Encoder shooterPos;
@@ -65,6 +69,17 @@ class Robot: public IterativeRobot {
 	Talon armMotor;
 	Servo shootServo;
 	Timer timer;
+	//Camera
+	IMAQdxSession session;
+	Image *frame;
+	IMAQdxError imaqError;
+	Relay lightSwitch;
+	Joystick controller; // only joystick
+	JoystickButton lightsButton;
+	std::shared_ptr<NetworkTable> table;
+	std::vector<double> area;
+	std::vector<double> centerX;
+	std::vector<double> centerY;
 
 public:
 
@@ -84,6 +99,9 @@ public:
 			shooterAimMotor(SHOOTER),
 			armMotor(ARM),
 			shootServo(SHOOTSERVO),
+			lightSwitch(LIGHTSWITCH),
+			controller(MAINJOY),
+			lightsButton(&controller, LIGHTS),
 			timer()
 	{
 		myRobot.SetExpiration(0.1);
@@ -110,6 +128,20 @@ private:
 		//camera->SetBrightness(50);
 		//camera->SetWhiteBalanceManual(0);
 		CameraServer::GetInstance()->StartAutomaticCapture("cam0");
+		table = NetworkTable::GetTable("GRIP/myContoursReport");
+
+		while (true) {
+					std::cout << "Areas: ";
+					area = table->GetNumberArray("myContoursReport/area", llvm::ArrayRef<double>());
+					centerX = table->GetNumberArray("myContoursReport/centerX", llvm::ArrayRef<double>());
+					centerY = table->GetNumberArray("myContoursReport/centerY", llvm::ArrayRef<double>());
+					unsigned int currentArea = area.size();
+					Wait(1);
+
+					std::cout << "GRIP area: " << currentArea << std::endl;
+					//std::cout << "GRIP X: " << currentArea << std::endl;
+					std::cout << "GRIP Y: " << centerY << std::endl;
+		}
 	}
 
 	/**
@@ -139,6 +171,7 @@ private:
 		//TODO: Add short, portcullis, drawbridge, cheval de frise, and sally port
 		std::string cTime = std::to_string(timer.Get());
 		SmartDashboard::PutString("DB/String 0", cTime);
+		lightSwitch.Set(Relay::kOn);
 
 		double currentTime = timer.Get();
 
@@ -270,8 +303,14 @@ private:
 		} else {
 			armMotor.Set(armMovement);
 		}
-
 #endif
+		while(IsOperatorControl() && IsEnabled()) {
+			if (lightsButton.Get() == 1) {
+				lightSwitch.Set(Relay::kOn);
+			} else {
+				lightSwitch.Set(Relay::kOff);
+			}
+		}
 	}
 
 	void TestPeriodic() {
