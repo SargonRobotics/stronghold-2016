@@ -47,14 +47,17 @@ class Robot: public IterativeRobot {
 	};
 
 	enum digitalinputs { //DIGITAL INPUT
-		MINARM = 0, MAXARM = 1, CHANNELA = 2, CHANNELB = 3
-	};
+			MINARM = 0, MAXARM = 1,
+			SHOOTERCHANNELA = 2, SHOOTERCHANNELB = 3,
+			ARMCHANNELA = 4, ARMCHANNELB = 5
+		};
 
 	AnalogPotentiometer rightArmPotInput;
 	AnalogPotentiometer leftArmPotInput;
 	DigitalInput bottomSwitch;
 	DigitalInput topSwitch;
-	Encoder encoder;
+	Encoder shooterPos;
+	Encoder armPos;
 	RobotDrive myRobot; // robot drive system
 	Joystick controller; // only joystick
 	JoystickButton rollerButton;
@@ -76,8 +79,8 @@ public:
 			rollerButton(&controller, SHOOTBALL),
 			leftShootMotor(LEFTSHOOT),
 			rightShootMotor(RIGHTSHOOT),
-			encoder(CHANNELA, CHANNELB, false, Encoder::EncodingType::k4X),
-			bottomSwitch(MINARM),
+			shooterPos(SHOOTERCHANNELA, SHOOTERCHANNELB, false, Encoder::EncodingType::k4X),
+			armPos(ARMCHANNELA, ARMCHANNELB, false, Encoder::EncodingType::k4X),			bottomSwitch(MINARM),
 			topSwitch(MAXARM),
 			rightArmPotInput(RIGHTPOTCHANNEL, 360, 10),
 			//TODO: Find offset. either 12 (full scale of linear motion) or 3600 (full scale of angular motion)
@@ -100,6 +103,7 @@ private:
 	const std::string autoShortDef = "Short/Drive Over Defenses";
 	const std::string autoPortcul = "Portcullis";
 	const std::string autoDraw = "Draw Bridge";
+	const std::string autoChevale = "Chevale de Frise";
 	const std::string autoSall = "Sally Port";
 	const std::string autoMid = "Move Balls to Our Side";
 	void* autoSelected;
@@ -132,6 +136,7 @@ private:
 		timer.Start();
 
 		shootServo.Set(0);
+		//move arm and shooter up
 
 		if (autoSelected == &autoNameCustom) {
 			//Custom Auto goes here
@@ -146,7 +151,7 @@ private:
 
 		double currentTime = timer.Get();
 
-		if (autoSelected == &autoNameDefault) {
+		if (autoSelected == &autoNameDefault) { //Test
 			if(currentTime < 2) {
 				myRobot.ArcadeDrive(0, 0, false);
 			} else if(currentTime < 4) {
@@ -156,14 +161,92 @@ private:
 			} else {
 				myRobot.ArcadeDrive(0, 0, false);
 			}
+
 		} else if(autoSelected == &autoShortDef){
 			if(currentTime < 3){
-				myRobot.ArcadeDrive(0.5, 0, false);
+				myRobot.ArcadeDrive(0.5, 0, false); //Drive over defense
+			} else {
+				myRobot.ArcadeDrive(0, 0, false);
+			}
+
+		} else if(autoSelected == &autoPortcul){
+			if(currentTime < 1.5){
+				myRobot.ArcadeDrive(0.5, 0, false); //drive up to defense
+			} else if(currentTime < 3){
+				//Put arm lifting code here //raises arm
 			} else if(currentTime < 5){
+				myRobot.ArcadeDrive(0.5, 0, false); //drives under defense
+			} else {
+				myRobot.ArcadeDrive(0, 0, false);
+			}
+
+		} else if(autoSelected == &autoDraw){
+			if(currentTime < 1.5){
+				myRobot.ArcadeDrive(0.5, 0, false); //drive up to defense
+			} else if(currentTime < 3){
+				//Put encoder move arm down //lowers arm
+			} else if(currentTime < 3.5){
+				myRobot.ArcadeDrive(-0.5, 0, false); //drives backward to lower door
+			} else if(currentTime < 4){
+				//Move arm down further //lowers door under robot
+			} else if(currentTime < 6){
+				myRobot.ArcadeDrive(0.5, 0, false); //drives over defense
+			} else {
 				myRobot.ArcadeDrive(0.5, 0, false);
 			}
+
+		} else if(autoSelected == &autoChevale){
+			if(currentTime < 1.5){
+				myRobot.ArcadeDrive(0.5, 0, false); //drives up to defense
+			} else if(currentTime < 3){
+				//Move shooter down //lowers shooter to make the defense passable
+			} else if(currentTime < 5){
+				myRobot.ArcadeDrive(0.5, 0, false); //drives over defense
+			} else {
+				myRobot.ArcadeDrive(0, 0, false);
+			}
+
+		} else if(autoSelected == &autoSall){
+			if(currentTime < 1.5){
+				myRobot.ArcadeDrive(0.5, 0, false);
+			} else if(currentTime < 3){
+				//TODO: use sensor for getting in position
+			}
+		} else if(autoSelected == &autoMid){
+			//Need to be positioned on end of field
+
+			int ballNum = 6;
+
+			if(currentTime < 0.5){
+				myRobot.ArcadeDrive(0.5, 0, false); //rotate parallel to field
+			} else if(currentTime < 3.5){
+				myRobot.ArcadeDrive(0.5, 0, false); //drive to end of field
+			} else if(currentTime < 4){
+				myRobot.ArcadeDrive(0, 0.5, false); //rotates facing enemy courtyard
+			} else if(currentTime < 4.5){
+				myRobot.ArcadeDrive(0.75, 0, false); //moves to be ahead of ball
+			} else if(currentTime < 5){
+				myRobot.ArcadeDrive(0.5, 0, false); //rotates parallel to field
+			}
+
+			for(int i = 0; i < ballNum; i++){
+				timer.Reset();
+				timer.Start();
+
+				if(currentTime < 0.5){
+					myRobot.ArcadeDrive(0.5, 0, false); //drive next to ball
+				} else if(currentTime < 1){
+					myRobot.ArcadeDrive(0, 0.5, false); //rotates to face ball
+				} else if(currentTime < 1.5){
+					myRobot.ArcadeDrive(0.5, 0, false); //hits ball towards our side
+				} else if(currentTime < 2){
+					myRobot.ArcadeDrive(-0.5, 0, false); //drives back
+				} else if(currentTime < 2.5){
+					myRobot.ArcadeDrive(0, -0.5, false); //rotates back
+				}
+			}
 		} else {
-			myRobot.ArcadeDrive(0, 0.4, false);
+			myRobot.ArcadeDrive(0, 0, false);
 		}
 	}
 
