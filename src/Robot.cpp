@@ -76,10 +76,15 @@ class Robot: public IterativeRobot {
 	Relay lightSwitch;
 	Joystick controller; // only joystick
 	JoystickButton lightsButton;
-	std::shared_ptr<NetworkTable> table;
+	std::shared_ptr<NetworkTable> contourTable;
+	std::shared_ptr<NetworkTable> linesTable;
+	std::string autoSelected;
 	std::vector<double> area;
 	std::vector<double> centerX;
 	std::vector<double> centerY;
+	std::vector<double> length;
+	std::vector<double> left;
+	std::vector<double> right;
 
 public:
 
@@ -112,31 +117,27 @@ public:
 
 private:
 	LiveWindow *lw = LiveWindow::GetInstance();
-	SendableChooser *chooser;
-	const std::string autoNameDefault = "Default";
-	const std::string autoNameCustom = "My Auto";
-	void* autoSelected;
 
 	void RobotInit() {
-		chooser = new SendableChooser();
-		chooser->AddDefault(autoNameDefault, (void*) &autoNameDefault);
-		chooser->AddObject(autoNameCustom, (void*) &autoNameCustom);
-		SmartDashboard::PutData("Auto Modes", chooser);
 		CameraServer::GetInstance()->SetQuality(50);
 		std::shared_ptr<USBCamera> camera(new USBCamera ("cam0" , true));
 		//camera->SetExposureManual(50);
 		//camera->SetBrightness(50);
 		//camera->SetWhiteBalanceManual(0);
 		CameraServer::GetInstance()->StartAutomaticCapture("cam0");
-		table = NetworkTable::GetTable("GRIP/myContoursReport");
+		contourTable = NetworkTable::GetTable("GRIP/myContoursReport");
+		linesTable = NetworkTable::GetTable("GRIP/myContoursReport");
+		autoSelected = SmartDashboard::GetString("DB/String 9", "Auto Selection");
 
 		while (true) {
-					std::cout << "Areas: ";
-					area = table->GetNumberArray("myContoursReport/area", llvm::ArrayRef<double>());
-					centerX = table->GetNumberArray("myContoursReport/centerX", llvm::ArrayRef<double>());
-					centerY = table->GetNumberArray("myContoursReport/centerY", llvm::ArrayRef<double>());
+					area = contourTable->GetNumberArray("myContoursReport/area", llvm::ArrayRef<double>());
+					centerX = contourTable->GetNumberArray("myContoursReport/centerX", llvm::ArrayRef<double>());
+					centerY = contourTable->GetNumberArray("myContoursReport/centerY", llvm::ArrayRef<double>());
 					unsigned int currentArea = area.size();
 					Wait(1);
+					length = linesTable->GetNumberArray("myLinesReport/length", llvm::ArrayRef<double>());
+					left = linesTable->GetNumberArray("myCountoursReport/x1", llvm::ArrayRef<double>());
+					right = linesTable->GetNumberArray("myCountoursReport/x2", llvm::ArrayRef<double>());
 
 					std::cout << "GRIP area: " << currentArea << std::endl;
 					//std::cout << "GRIP X: " << currentArea << std::endl;
@@ -144,27 +145,12 @@ private:
 		}
 	}
 
-	/**
-	 * This autonomous (along with the chooser code above) shows how to select between different autonomous modes
-	 * using the dashboard. The sendable chooser code works with the Java SmartDashboard. If you prefer the LabVIEW
-	 * Dashboard, remove all of the chooser code and uncomment the GetString line to get the auto name from the text box
-	 * below the Gyro
-	 *
-	 * You can add additional auto modes by adding additional comparisons to the if-else structure below with additional strings.
-	 * If using the SendableChooser make sure to add them to the chooser code above as well.
-	 */
 	void AutonomousInit() {
-		autoSelected = chooser->GetSelected();
+
 		timer.Reset();
 		timer.Start();
 
 		shootServo.Set(0);
-
-		if (autoSelected == &autoNameCustom) {
-			//Custom Auto goes here
-		} else {
-			//Default Auto goes here
-		}
 	}
 
 	void AutonomousPeriodic() {
@@ -175,7 +161,7 @@ private:
 
 		double currentTime = timer.Get();
 
-		if (autoSelected == &autoNameDefault) {
+		if (autoSelected == "Short") {
 			if(currentTime < 2) {
 				myRobot.ArcadeDrive(0, 0, false);
 			} else if(currentTime < 4) {
@@ -185,8 +171,26 @@ private:
 			} else {
 				myRobot.ArcadeDrive(0, 0, false);
 			}
-		} else {
-			myRobot.ArcadeDrive(0, 0.4, false);
+		} else if (autoSelected == "Cheval De Frise") {
+			armMotor.Set(1);
+			Wait(4);
+			myRobot.ArcadeDrive(0.5, 0, false);
+			Wait(2);
+			armMotor.Set(-1);
+			Wait(3);
+			myRobot.ArcadeDrive(1, 0, false);
+		} else if (autoSelected == "Drawbridge") {
+
+		} else if (autoSelected == "Portcullis") {
+
+		} else if (autoSelected == "Sally Port") {
+
+		} else if (autoSelected == "Mid") {
+			myRobot.ArcadeDrive(0.5, 0, false)
+			Wait(5);
+			myRobot
+		} else if (autoSelected == nullptr) {
+			DriverStation::ReportError("Alert: You are a dirty skrub");
 		}
 	}
 
