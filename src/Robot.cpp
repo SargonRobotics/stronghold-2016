@@ -127,26 +127,24 @@ private:
 		autoSelected = SmartDashboard::GetString("DB/String 9", "Auto Selection");
 
 		while (true) {
-					area = contourTable->GetNumberArray("myContoursReport/area", llvm::ArrayRef<double>());
-					centerX = contourTable->GetNumberArray("myContoursReport/centerX", llvm::ArrayRef<double>());
-					centerY = contourTable->GetNumberArray("myContoursReport/centerY", llvm::ArrayRef<double>());
-					unsigned int currentArea = area.size();
-					Wait(1);
-					length = linesTable->GetNumberArray("myLinesReport/length", llvm::ArrayRef<double>());
-					left = linesTable->GetNumberArray("myCountoursReport/x1", llvm::ArrayRef<double>());
-					right = linesTable->GetNumberArray("myCountoursReport/x2", llvm::ArrayRef<double>());
+			area = contourTable->GetNumberArray("myContoursReport/area", llvm::ArrayRef<double>());
+			centerX = contourTable->GetNumberArray("myContoursReport/centerX", llvm::ArrayRef<double>());
+			centerY = contourTable->GetNumberArray("myContoursReport/centerY", llvm::ArrayRef<double>());
+			unsigned int currentArea = area.size();
+			Wait(1);
+			length = linesTable->GetNumberArray("myLinesReport/length", llvm::ArrayRef<double>());
+			left = linesTable->GetNumberArray("myCountoursReport/x1", llvm::ArrayRef<double>());
+			right = linesTable->GetNumberArray("myCountoursReport/x2", llvm::ArrayRef<double>());
 
-					std::cout << "GRIP area: " << currentArea << std::endl;
-					//std::cout << "GRIP X: " << currentArea << std::endl;
-					std::cout << "GRIP Y: " << centerY << std::endl;
+			std::cout << "GRIP area: " << currentArea << std::endl;
+			//std::cout << "GRIP X: " << currentArea << std::endl;
+			std::cout << "GRIP Y: " << centerY << std::endl;
 		}
 	}
 
 	void AutonomousInit() {
-
 		timer.Reset();
 		timer.Start();
-
 		shootServo.Set(0);
 	}
 
@@ -158,36 +156,84 @@ private:
 
 		double currentTime = timer.Get();
 
-		if (autoSelected == "Short") {
-			if(currentTime < 2) {
-				myRobot.ArcadeDrive(0, 0, false);
-			} else if(currentTime < 4) {
-				myRobot.ArcadeDrive(0.5, 0, false);
-			} else if(currentTime < 6){
-				myRobot.ArcadeDrive(1, 0, false);
+		if (autoSelected == "short") {
+			if(currentTime < 3){
+				myRobot.ArcadeDrive(0.5, 0, false); //Drive over defense
 			} else {
 				myRobot.ArcadeDrive(0, 0, false);
 			}
-		} else if (autoSelected == "Cheval De Frise") {
-			armMotor.Set(1);
-			Wait(4);
-			myRobot.ArcadeDrive(0.5, 0, false);
-			Wait(2);
-			armMotor.Set(-1);
-			Wait(3);
-			myRobot.ArcadeDrive(1, 0, false);
-		} else if (autoSelected == "Drawbridge") {
-
-		} else if (autoSelected == "Portcullis") {
-
-		} else if (autoSelected == "Sally Port") {
-
-		} else if (autoSelected == "Mid") {
-			myRobot.ArcadeDrive(0.5, 0, false)
-			Wait(5);
-			myRobot
-		} else if (autoSelected == nullptr) {
-			DriverStation::ReportError("Alert: You are a dirty skrub");
+		} else if(autoSelected == "portcullis") {
+			if(currentTime < 1.5){
+				myRobot.ArcadeDrive(0.5, 0, false); //drive up to defense
+			} else if(currentTime < 3){
+				//Put arm lifting code here //raises arm
+			} else if(currentTime < 5){
+				myRobot.ArcadeDrive(0.5, 0, false); //drives under defense
+			} else {
+				myRobot.ArcadeDrive(0, 0, false);
+			}
+		} else if(autoSelected == "drawbridge"){
+			if(currentTime < 1.5){
+				myRobot.ArcadeDrive(0.5, 0, false); //drive up to defense
+			} else if(currentTime < 3){
+			//Put encoder move arm down //lowers arm
+			} else if(currentTime < 3.5){
+				myRobot.ArcadeDrive(-0.5, 0, false); //drives backward to lower door
+			} else if(currentTime < 4){
+			//Move arm down further //lowers door under robot
+			} else if(currentTime < 6){
+				myRobot.ArcadeDrive(0.5, 0, false); //drives over defense
+			} else {
+				myRobot.ArcadeDrive(0.5, 0, false);
+			}
+		} else if(autoSelected == "cheval de frise"){
+			if(currentTime < 1.5){
+				myRobot.ArcadeDrive(0.5, 0, false); //drives up to defense
+			} else if(currentTime < 3){
+			//Move shooter down //lowers shooter to make the defense passable
+			} else if(currentTime < 5){
+				myRobot.ArcadeDrive(0.5, 0, false); //drives over defense
+			} else {
+				myRobot.ArcadeDrive(0, 0, false);
+			}
+		} else if(autoSelected == "sally port"){
+			if(currentTime < 1.5){
+				myRobot.ArcadeDrive(0.5, 0, false);
+			} else if(currentTime < 3){
+				//TODO: use sensor for getting in position
+			}
+		} else if(autoSelected == "mid"){
+			//Need to be positioned on end of field
+			int ballNum = 6;
+			if(currentTime < 0.5){
+				myRobot.ArcadeDrive(0.5, 0, false); //rotate parallel to field
+			} else if(currentTime < 3.5){
+				myRobot.ArcadeDrive(0.5, 0, false); //drive to end of field
+			} else if(currentTime < 4){
+				myRobot.ArcadeDrive(0, 0.5, false); //rotates facing enemy courtyard
+			} else if(currentTime < 4.5){
+				myRobot.ArcadeDrive(0.75, 0, false); //moves to be ahead of ball
+			} else if(currentTime < 5){
+				myRobot.ArcadeDrive(0.5, 0, false); //rotates parallel to field
+			}
+			for(int i = 0; i < ballNum; i++){
+				timer.Reset();
+				timer.Start();
+				if(currentTime < 0.5){
+					myRobot.ArcadeDrive(0.5, 0, false); //drive next to ball
+				} else if(currentTime < 1){
+					myRobot.ArcadeDrive(0, 0.5, false); //rotates to face ball
+				} else if(currentTime < 1.5){
+					myRobot.ArcadeDrive(0.5, 0, false); //hits ball towards our side
+				} else if(currentTime < 2){
+					myRobot.ArcadeDrive(-0.5, 0, false); //drives back
+				} else if(currentTime < 2.5){
+					myRobot.ArcadeDrive(0, -0.5, false); //rotates back
+				}
+			}
+		} else {
+			myRobot.ArcadeDrive(0, 0, false);
+			DriverStation::ReportError("You are a dirty skrub!");
 		}
 	}
 
