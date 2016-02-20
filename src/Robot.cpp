@@ -138,7 +138,7 @@ private:
 
 			std::cout << "GRIP area: " << currentArea << std::endl;
 			//std::cout << "GRIP X: " << currentArea << std::endl;
-			std::cout << "GRIP Y: " << centerY << std::endl;
+			//std::cout << "GRIP Y: " << centerY << std::endl;
 		}
 	}
 
@@ -304,7 +304,7 @@ private:
 		double shooterCount = shooterPos.Get();
 		double shooterDistance = shooterPos.GetDistance();
 		double shooterMin = 0;
-		double shooterMax = 1000
+		double shooterMax = 1000;
 
 //		Two trigger version
 		if (shootState > 0.5 && pullState < 0.5) {
