@@ -38,7 +38,7 @@ class Robot: public IterativeRobot {
 	enum motors { //PWM
 		LEFTDRIVE = 0, RIGHTDRIVE = 1,
 		LEFTSHOOT =2, RIGHTSHOOT = 3,
-		SHOOTSERVO = 6,
+		SHOOTSERVO = 7,
 		ARM = 8, SHOOTER = 9
 	};
 
@@ -51,12 +51,9 @@ class Robot: public IterativeRobot {
 		LIGHTSWITCH = 3
 	};
 
-	DigitalInput bottomSwitch;
-	DigitalInput topSwitch;
 	Encoder shooterPos;
 	Encoder armPos;
 	RobotDrive myRobot; // robot drive system
-	Joystick controller; // only joystick
 	JoystickButton rollerButton;
 #if JOYSTICK
 	JoystickButton armUpButton;
