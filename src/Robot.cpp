@@ -36,7 +36,7 @@ class Robot: public IterativeRobot {
 #endif
 
 	enum motors { //PWM
-		LEFTDRIVE = 0, RIGHTDRIVE = 1,
+		LEFTDRIVE = 1, RIGHTDRIVE = 0,
 		LEFTSHOOT =2, RIGHTSHOOT = 3,
 		SHOOTSERVO = 7,
 		ARM = 8, SHOOTER = 9
@@ -60,10 +60,10 @@ class Robot: public IterativeRobot {
 	JoystickButton armDownButton;
 #endif
 	JoystickButton autoAimButton;
-	Talon leftShootMotor;
-	Talon rightShootMotor;
-	Talon shooterAimMotor;
-	Talon armMotor;
+	Victor leftShootMotor;
+	Victor rightShootMotor;
+	Victor shooterAimMotor;
+	Victor armMotor;
 	Servo shootServo;
 	Timer timer;
 	//Camera
@@ -73,15 +73,16 @@ class Robot: public IterativeRobot {
 	Relay lightSwitch;
 	Joystick controller; // only joystick
 	JoystickButton lightsButton;
-	std::shared_ptr<NetworkTable> contourTable;
-	std::shared_ptr<NetworkTable> linesTable;
+	//std::shared_ptr<NetworkTable> contourTable;
+	//std::shared_ptr<NetworkTable> linesTable;
+	//std::string autoSelected;
+	//std::vector<double> area;
+	//std::vector<double> centerX;
+	//std::vector<double> centerY;
+	//std::vector<double> length;
+	//std::vector<double> left;
+	//std::vector<double> right;
 	std::string autoSelected;
-	std::vector<double> area;
-	std::vector<double> centerX;
-	std::vector<double> centerY;
-	std::vector<double> length;
-	std::vector<double> left;
-	std::vector<double> right;
 
 public:
 
@@ -102,44 +103,39 @@ public:
 			armMotor(ARM),
 			shootServo(SHOOTSERVO),
 			lightSwitch(LIGHTSWITCH),
-			controller(MAINJOY),
 			lightsButton(&controller, LIGHTS),
 			timer()
 	{
 		myRobot.SetExpiration(0.1);
-		//myRobot.SetInvertedMotor(BLEFTDRIVE, true);
-		//myRobot.SetInvertedMotor(BRIGHTDRIVE, true);
-
 	}
 
 private:
-	LiveWindow *lw = LiveWindow::GetInstance();
 
 	void RobotInit() {
-		CameraServer::GetInstance()->SetQuality(50);
-		std::shared_ptr<USBCamera> camera(new USBCamera ("cam0" , true));
+		//CameraServer::GetInstance()->SetQuality(50);
+		//std::shared_ptr<USBCamera> camera(new USBCamera ("cam0" , true));
 		//camera->SetExposureManual(50);
 		//camera->SetBrightness(50);
 		//camera->SetWhiteBalanceManual(0);
-		CameraServer::GetInstance()->StartAutomaticCapture("cam0");
-		contourTable = NetworkTable::GetTable("GRIP/myContoursReport");
-		linesTable = NetworkTable::GetTable("GRIP/myContoursReport");
-		autoSelected = SmartDashboard::GetString("DB/String 9", "Auto Selection");
+		//CameraServer::GetInstance()->StartAutomaticCapture("cam0");
 
-		while (true) {
-			area = contourTable->GetNumberArray("myContoursReport/area", llvm::ArrayRef<double>());
-			centerX = contourTable->GetNumberArray("myContoursReport/centerX", llvm::ArrayRef<double>());
-			centerY = contourTable->GetNumberArray("myContoursReport/centerY", llvm::ArrayRef<double>());
-			unsigned int currentArea = area.size();
-			Wait(1);
-			length = linesTable->GetNumberArray("myLinesReport/length", llvm::ArrayRef<double>());
-			left = linesTable->GetNumberArray("myCountoursReport/x1", llvm::ArrayRef<double>());
-			right = linesTable->GetNumberArray("myCountoursReport/x2", llvm::ArrayRef<double>());
+		//contourTable = NetworkTable::GetTable("GRIP/myContoursReport");
+		//linesTable = NetworkTable::GetTable("GRIP/myContoursReport");
 
-			std::cout << "GRIP area: " << currentArea << std::endl;
+		//while (true) {
+			//area = contourTable->GetNumberArray("myContoursReport/area", llvm::ArrayRef<double>());
+			//centerX = contourTable->GetNumberArray("myContoursReport/centerX", llvm::ArrayRef<double>());
+			//centerY = contourTable->GetNumberArray("myContoursReport/centerY", llvm::ArrayRef<double>());
+			//unsigned int currentArea = area.size();
+			//Wait(1);
+			//length = linesTable->GetNumberArray("myLinesReport/length", llvm::ArrayRef<double>());
+			//left = linesTable->GetNumberArray("myCountoursReport/x1", llvm::ArrayRef<double>());
+			//right = linesTable->GetNumberArray("myCountoursReport/x2", llvm::ArrayRef<double>());
+
+			//std::cout << "GRIP area: " << currentArea << std::endl;
 			//std::cout << "GRIP X: " << currentArea << std::endl;
 			//std::cout << "GRIP Y: " << centerY << std::endl;
-		}
+		//}
 	}
 
 	void AutonomousInit() {
@@ -152,53 +148,54 @@ private:
 		//TODO: Add short, portcullis, drawbridge, cheval de frise, and sally port
 		std::string cTime = std::to_string(timer.Get());
 		SmartDashboard::PutString("DB/String 0", cTime);
+		autoSelected = SmartDashboard::GetString("DB/String 9", "Auto Selection");
 		lightSwitch.Set(Relay::kOn);
 
 		double currentTime = timer.Get();
 
 		if (autoSelected == "short") {
-			if(currentTime < 3){
-				myRobot.ArcadeDrive(0.5, 0, false); //Drive over defense
+			if(currentTime < 5){
+				myRobot.ArcadeDrive(-0.5, 0, false); //Drive over defense
 			} else {
 				myRobot.ArcadeDrive(0, 0, false);
 			}
 		} else if(autoSelected == "portcullis") {
 			if(currentTime < 1.5){
-				myRobot.ArcadeDrive(0.5, 0, false); //drive up to defense
+				myRobot.ArcadeDrive(-0.5, 0, false); //drive up to defense
 			} else if(currentTime < 3){
-				//Put arm lifting code here //raises arm
+				armMotor.Set(1);
 			} else if(currentTime < 5){
-				myRobot.ArcadeDrive(0.5, 0, false); //drives under defense
+				myRobot.ArcadeDrive(-0.5, 0, false); //drives under defense
 			} else {
 				myRobot.ArcadeDrive(0, 0, false);
 			}
 		} else if(autoSelected == "drawbridge"){
 			if(currentTime < 1.5){
-				myRobot.ArcadeDrive(0.5, 0, false); //drive up to defense
+				myRobot.ArcadeDrive(-0.5, 0, false); //drive up to defense
 			} else if(currentTime < 3){
 			//Put encoder move arm down //lowers arm
 			} else if(currentTime < 3.5){
-				myRobot.ArcadeDrive(-0.5, 0, false); //drives backward to lower door
+				myRobot.ArcadeDrive(0.5, 0, false); //drives backward to lower door
 			} else if(currentTime < 4){
 			//Move arm down further //lowers door under robot
 			} else if(currentTime < 6){
-				myRobot.ArcadeDrive(0.5, 0, false); //drives over defense
+				myRobot.ArcadeDrive(-0.5, 0, false); //drives over defense
 			} else {
-				myRobot.ArcadeDrive(0.5, 0, false);
+				myRobot.ArcadeDrive(-0.5, 0, false);
 			}
 		} else if(autoSelected == "cheval de frise"){
 			if(currentTime < 1.5){
-				myRobot.ArcadeDrive(0.5, 0, false); //drives up to defense
+				myRobot.ArcadeDrive(-0.5, 0, false); //drives up to defense
 			} else if(currentTime < 3){
 			//Move shooter down //lowers shooter to make the defense passable
 			} else if(currentTime < 5){
-				myRobot.ArcadeDrive(0.5, 0, false); //drives over defense
+				myRobot.ArcadeDrive(-0.5, 0, false); //drives over defense
 			} else {
 				myRobot.ArcadeDrive(0, 0, false);
 			}
 		} else if(autoSelected == "sally port"){
 			if(currentTime < 1.5){
-				myRobot.ArcadeDrive(0.5, 0, false);
+				myRobot.ArcadeDrive(-0.5, 0, false);
 			} else if(currentTime < 3){
 				//TODO: use sensor for getting in position
 			}
@@ -206,27 +203,27 @@ private:
 			//Need to be positioned on end of field
 			int ballNum = 6;
 			if(currentTime < 0.5){
-				myRobot.ArcadeDrive(0.5, 0, false); //rotate parallel to field
+				myRobot.ArcadeDrive(0, -0.5, false); //rotate parallel to field
 			} else if(currentTime < 3.5){
-				myRobot.ArcadeDrive(0.5, 0, false); //drive to end of field
+				myRobot.ArcadeDrive(-0.5, 0, false); //drive to end of field
 			} else if(currentTime < 4){
 				myRobot.ArcadeDrive(0, 0.5, false); //rotates facing enemy courtyard
 			} else if(currentTime < 4.5){
-				myRobot.ArcadeDrive(0.75, 0, false); //moves to be ahead of ball
+				myRobot.ArcadeDrive(-0.75, 0, false); //moves to be ahead of ball
 			} else if(currentTime < 5){
-				myRobot.ArcadeDrive(0.5, 0, false); //rotates parallel to field
+				myRobot.ArcadeDrive(-0.5, 0, false); //rotates parallel to field
 			}
 			for(int i = 0; i < ballNum; i++){
 				timer.Reset();
 				timer.Start();
 				if(currentTime < 0.5){
-					myRobot.ArcadeDrive(0.5, 0, false); //drive next to ball
+					myRobot.ArcadeDrive(-0.5, 0, false); //drive next to ball
 				} else if(currentTime < 1){
 					myRobot.ArcadeDrive(0, 0.5, false); //rotates to face ball
 				} else if(currentTime < 1.5){
-					myRobot.ArcadeDrive(0.5, 0, false); //hits ball towards our side
+					myRobot.ArcadeDrive(-0.5, 0, false); //hits ball towards our side
 				} else if(currentTime < 2){
-					myRobot.ArcadeDrive(-0.5, 0, false); //drives back
+					myRobot.ArcadeDrive(0.5, 0, false); //drives back
 				} else if(currentTime < 2.5){
 					myRobot.ArcadeDrive(0, -0.5, false); //rotates back
 				}
@@ -294,15 +291,17 @@ private:
 		SmartDashboard::PutString("DB/String 4", ("Rot after: " + aRotate));
 		SmartDashboard::PutString("DB/String 5", ("Arm after: " + aArm));
 #endif
-
-		myRobot.ArcadeDrive(moveDirection, rotateAmount, false);
-
 //		Shooter Code
 		double shootState = controller.GetRawAxis(SHOOTBALL);
 		double pullState = controller.GetRawAxis(PULLBALL);
 //		Get shooter encoder angle
 		double shooterCount = shooterPos.Get();
 		double shooterDistance = shooterPos.GetDistance();
+
+		std::string getIt = std::to_string(shooterCount);
+		std::string getDistance = std::to_string(shooterDistance);
+		SmartDashboard::PutString("DB/String 6", ("Get: " + getIt));
+		SmartDashboard::PutString("DB/String 7", ("Distance: " + getDistance));
 		double shooterMin = 0;
 		double shooterMax = 1000;
 
@@ -346,22 +345,22 @@ private:
 		double armMax = 1000;
 
 		if (armMovement == 0) {
+
 			armMotor.Set(0);
 		} else {
 			armMotor.Set(armMovement);
 		}
 #endif
-		while(IsOperatorControl() && IsEnabled()) {
-			if (lightsButton.Get() == 1) {
-				lightSwitch.Set(Relay::kOn);
-			} else {
-				lightSwitch.Set(Relay::kOff);
-			}
-		}
+	myRobot.ArcadeDrive(moveDirection, rotateAmount, false);
+	if (lightsButton.Get() == 1) {
+		lightSwitch.Set(Relay::kOn);
+	} else {
+		lightSwitch.Set(Relay::kOff);
+	}
 	}
 
 	void TestPeriodic() {
-		lw->Run();
+
 	}
 
 	double createDeadzone(double amount, double deadzone = DEADZONE) {
@@ -380,3 +379,4 @@ private:
 };
 
 START_ROBOT_CLASS(Robot)
+
