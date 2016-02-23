@@ -44,7 +44,8 @@ class Robot: public IterativeRobot {
 
 	enum digitalinputs { //DIGITAL INPUT
 		SHOOTERCHANNELA = 0, SHOOTERCHANNELB = 1,
-		ARMCHANNELA = 2, ARMCHANNELB = 3
+		ARMCHANNELA = 2, ARMCHANNELB = 3,
+		TOPLIMIT = 4
 	};
 
 	enum relays {
@@ -66,6 +67,7 @@ class Robot: public IterativeRobot {
 	Victor armMotor;
 	Servo shootServo;
 	Timer timer;
+	DigitalInput topReset;
 	//Camera
 	IMAQdxSession session;
 	Image *frame;
@@ -97,9 +99,10 @@ public:
 			autoAimButton(&controller, GOALAIM),
 			leftShootMotor(LEFTSHOOT),
 			rightShootMotor(RIGHTSHOOT),
-			shooterPos(SHOOTERCHANNELA, SHOOTERCHANNELB, false, Encoder::EncodingType::k4X),
+			shooterPos(SHOOTERCHANNELA, SHOOTERCHANNELB, true, Encoder::EncodingType::k4X),
 			armPos(ARMCHANNELA, ARMCHANNELB, false, Encoder::EncodingType::k4X),
 			shooterAimMotor(SHOOTER),
+			topReset(TOPLIMIT),
 			armMotor(ARM),
 			shootServo(SHOOTSERVO),
 			lightSwitch(LIGHTSWITCH),
@@ -112,12 +115,12 @@ public:
 private:
 
 	void RobotInit() {
-		//CameraServer::GetInstance()->SetQuality(50);
-		//std::shared_ptr<USBCamera> camera(new USBCamera ("cam0" , true));
+		CameraServer::GetInstance()->SetQuality(50);
+		std::shared_ptr<USBCamera> camera(new USBCamera ("cam0" , true));
 		//camera->SetExposureManual(50);
 		//camera->SetBrightness(50);
 		//camera->SetWhiteBalanceManual(0);
-		//CameraServer::GetInstance()->StartAutomaticCapture("cam0");
+		CameraServer::GetInstance()->StartAutomaticCapture("cam0");
 
 		//contourTable = NetworkTable::GetTable("GRIP/myContoursReport");
 		//linesTable = NetworkTable::GetTable("GRIP/myContoursReport");
@@ -269,7 +272,7 @@ private:
 
 #if DEBUG
 		std::string bDirection = std::to_string(moveDirection);
-		std::string bRotate = std::to_string(rotateAmount);
+		std::string bRotate = std::to_string(-rotateAmount);
 		std::string bShooter = std::to_string(shooterMovement);
 		std::string bArm = std::to_string(armMovement);
 		SmartDashboard::PutString("DB/String 0", ("Dir before: " + bDirection));
@@ -279,15 +282,15 @@ private:
 #endif
 
 		moveDirection = createDeadzone(moveDirection);
-		rotateAmount = createDeadzone(rotateAmount);
+		rotateAmount = createDeadzone(-rotateAmount);
 		shooterMovement = createDeadzone(shooterMovement);
 		armMovement = createDeadzone(armMovement);
 
 #if DEBUG
-		std::string aDirection = std::to_string(moveDirection);
+		std::string aDirection = std::to_string(shootServo.Get());
 		std::string aRotate = std::to_string(rotateAmount);
 		std::string aArm = std::to_string(armMovement);
-		SmartDashboard::PutString("DB/String 3", ("Dir after: " + aDirection));
+		SmartDashboard::PutString("DB/String 3", ("Servo: " + aDirection));
 		SmartDashboard::PutString("DB/String 4", ("Rot after: " + aRotate));
 		SmartDashboard::PutString("DB/String 5", ("Arm after: " + aArm));
 #endif
@@ -297,45 +300,51 @@ private:
 //		Get shooter encoder angle
 		double shooterCount = shooterPos.Get();
 		double shooterDistance = shooterPos.GetDistance();
-
-		std::string getIt = std::to_string(shooterCount);
-		std::string getDistance = std::to_string(shooterDistance);
-		SmartDashboard::PutString("DB/String 6", ("Get: " + getIt));
-		SmartDashboard::PutString("DB/String 7", ("Distance: " + getDistance));
-		double shooterMin = 0;
 		double shooterMax = 1000;
+		/*if (topReset.Get()) {
+			if(shooterMovement < 0) {
+				shooterMovement = 0;
+				DriverStation::ReportError("Warning! Shooter at breaking point!");
+			}
+			shooterPos.Reset();
+		} */
+		shooterAimMotor.Set(shooterMovement);
+
+		//		Auto aim and shoot
+		double aimValue = 500; //arbitrary
+		if (autoAimButton.Get()) {
+			double current = shooterPos.GetDistance();
+			if (current - 25 < aimValue) {
+				shooterAimMotor.Set(-1);
+			} else if (current - 5 < aimValue) {
+				shooterAimMotor.Set(-0.5);
+			} else if (current + 25 > aimValue) {
+				shooterAimMotor.Set(1);
+			} else if (current + 5 > aimValue) {
+				shooterAimMotor.Set(0.5);
+			} else {
+				SmartDashboard::PutBoolean("DB/LED 0", true);
+			}
+		}
+
+		std::string getDistance = std::to_string(shooterDistance);
+		std::string raw = std::to_string(rightShootMotor.GetRaw());
+		SmartDashboard::PutString("DB/String 6", ("Distance: " + getDistance));
+		SmartDashboard::PutString("DB/String 7", ("Get Raw: " + raw));
 
 //		Two trigger version
 		if (shootState > 0.5 && pullState < 0.5) {
 			rightShootMotor.Set(1);
+			//rightShootMotor.SetRaw(12);
 			leftShootMotor.Set(1);
-			shootServo.Set(100);
+			shootServo.Set(0);
 		} else if (shootState < 0.5 && pullState > 0.5) {
-			rightShootMotor.Set(-0.3);
-			leftShootMotor.Set(-0.3);
+			rightShootMotor.Set(-0.5);
+			leftShootMotor.Set(-0.5);
 		} else {
 			rightShootMotor.Set(0);
 			leftShootMotor.Set(0);
-			shootServo.Set(0);
-		}
-
-//		Auto aim and shoot
-		double aimValue = 4; //arbitrary
-		if (autoAimButton.Get()) {
-			double current = shooterPos.GetDistance();
-			if ((current - 3 > aimValue) && (current > shooterMin)) {
-				shooterAimMotor.Set(-1);
-			} else if ((current + 3 < aimValue) && (current < shooterMax)) {
-				shooterAimMotor.Set(1);
-			} else {
-				shooterAimMotor.Set(0);
-			}
-		} else {
-			if (shooterMovement == 0) {
-				shooterAimMotor.Set(0);
-			} else {
-				shooterAimMotor.Set(shooterMovement);
-			}
+			shootServo.Set(100);
 		}
 
 //		Arm Code
@@ -345,8 +354,7 @@ private:
 		double armMax = 1000;
 
 		if (armMovement == 0) {
-
-			armMotor.Set(0);
+			armMotor.Set(0);SmartDashboard::PutString("DB/String 8", ("Get Raw: " + raw));
 		} else {
 			armMotor.Set(armMovement);
 		}
