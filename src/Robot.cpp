@@ -26,17 +26,17 @@ class Robot: public IterativeRobot {
 	};
 
 	enum buttons { //CONTROLLER
-		GOALAIM = 3, LIGHTS = 4
+		ARMACCEL = 1, LIGHTS = 2, GOALAIM = 7, ARMDOWN = 4, ARMUP = 5
 	};
 
 	enum axis {  //CONTROLLER
-		SHOOTBALL = 3, ARMDIRECTION = 5, MOVE = 1, ROTATE = 0, PULLBALL = 2, SHOOTDIRECTION = 4
+		SHOOTBALL = 3, MOVE = 1, ROTATE = 0, PULLBALL = 2, SHOOTDIRECTION = 5, ARMDIRECTION = 5
 	};
 
 #endif
 
 	enum motors { //PWM
-		LEFTDRIVE = 0, RIGHTDRIVE = 1,
+		LEFTDRIVE = 1, RIGHTDRIVE = 0,
 		LEFTSHOOT =2, RIGHTSHOOT = 3,
 		SHOOTSERVO = 7,
 		ARM = 8, SHOOTER = 9
@@ -44,7 +44,8 @@ class Robot: public IterativeRobot {
 
 	enum digitalinputs { //DIGITAL INPUT
 		SHOOTERCHANNELA = 0, SHOOTERCHANNELB = 1,
-		ARMCHANNELA = 2, ARMCHANNELB = 3
+		ARMCHANNELA = 2, ARMCHANNELB = 3,
+		TOPLIMIT = 4
 	};
 
 	enum relays {
@@ -55,18 +56,18 @@ class Robot: public IterativeRobot {
 	Encoder armPos;
 	RobotDrive myRobot; // robot drive system
 	JoystickButton rollerButton;
-#if JOYSTICK
 	JoystickButton armUpButton;
 	JoystickButton armDownButton;
-#endif
 	JoystickButton autoAimButton;
-	Talon leftShootMotor;
-	Talon rightShootMotor;
-	Talon shooterAimMotor;
-	Talon armMotor;
+	JoystickButton armAccelButton;
+	Victor leftShootMotor;
+	Victor rightShootMotor;
+	Victor shooterAimMotor;
+	Victor armMotor;
 	Servo shootServo;
 	Timer timer;
-	//Camera
+	DigitalInput topReset;
+//  Camera
 	IMAQdxSession session;
 	Image *frame;
 	IMAQdxError imaqError;
@@ -89,31 +90,26 @@ public:
 			myRobot(LEFTDRIVE, RIGHTDRIVE),	// initialize the RobotDrive to use motor controllers on ports 0-3
 			controller(MAINJOY),
 			rollerButton(&controller, SHOOTBALL),
-#if JOYSTICK
 			armUpButton(&controller, ARMUP),
 			armDownButton(&controller, ARMDOWN),
-#endif
 			autoAimButton(&controller, GOALAIM),
+			armAccelButton(&controller, ARMACCEL),
 			leftShootMotor(LEFTSHOOT),
 			rightShootMotor(RIGHTSHOOT),
-			shooterPos(SHOOTERCHANNELA, SHOOTERCHANNELB, false, Encoder::EncodingType::k4X),
+			shooterPos(SHOOTERCHANNELA, SHOOTERCHANNELB, true, Encoder::EncodingType::k4X),
 			armPos(ARMCHANNELA, ARMCHANNELB, false, Encoder::EncodingType::k4X),
 			shooterAimMotor(SHOOTER),
+			topReset(TOPLIMIT),
 			armMotor(ARM),
 			shootServo(SHOOTSERVO),
 			lightSwitch(LIGHTSWITCH),
-			controller(MAINJOY),
 			lightsButton(&controller, LIGHTS),
 			timer()
 	{
 		myRobot.SetExpiration(0.1);
-		//myRobot.SetInvertedMotor(BLEFTDRIVE, true);
-		//myRobot.SetInvertedMotor(BRIGHTDRIVE, true);
-
 	}
 
 private:
-	LiveWindow *lw = LiveWindow::GetInstance();
 
 	void RobotInit() {
 		CameraServer::GetInstance()->SetQuality(50);
@@ -122,122 +118,122 @@ private:
 		//camera->SetBrightness(50);
 		//camera->SetWhiteBalanceManual(0);
 		CameraServer::GetInstance()->StartAutomaticCapture("cam0");
-		contourTable = NetworkTable::GetTable("GRIP/myContoursReport");
-		linesTable = NetworkTable::GetTable("GRIP/myContoursReport");
-		autoSelected = SmartDashboard::GetString("DB/String 9", "Auto Selection");
 
-		while (true) {
-			area = contourTable->GetNumberArray("myContoursReport/area", llvm::ArrayRef<double>());
-			centerX = contourTable->GetNumberArray("myContoursReport/centerX", llvm::ArrayRef<double>());
-			centerY = contourTable->GetNumberArray("myContoursReport/centerY", llvm::ArrayRef<double>());
-			unsigned int currentArea = area.size();
-			Wait(1);
-			length = linesTable->GetNumberArray("myLinesReport/length", llvm::ArrayRef<double>());
-			left = linesTable->GetNumberArray("myCountoursReport/x1", llvm::ArrayRef<double>());
-			right = linesTable->GetNumberArray("myCountoursReport/x2", llvm::ArrayRef<double>());
+		//contourTable = NetworkTable::GetTable("GRIP/myContoursReport");
+		//linesTable = NetworkTable::GetTable("GRIP/myContoursReport");
+		//area = contourTable->GetNumberArray("myContoursReport/area", llvm::ArrayRef<double>());
+		//centerX = contourTable->GetNumberArray("myContoursReport/centerX", llvm::ArrayRef<double>());
+		//centerY = contourTable->GetNumberArray("myContoursReport/centerY", llvm::ArrayRef<double>());
+		//unsigned int currentArea = area.size();
+		//Wait(1);
+		//length = linesTable->GetNumberArray("myLinesReport/length", llvm::ArrayRef<double>());
+		//left = linesTable->GetNumberArray("myCountoursReport/x1", llvm::ArrayRef<double>());
+		//right = linesTable->GetNumberArray("myCountoursReport/x2", llvm::ArrayRef<double>());
 
-			std::cout << "GRIP area: " << currentArea << std::endl;
-			//std::cout << "GRIP X: " << currentArea << std::endl;
-			//std::cout << "GRIP Y: " << centerY << std::endl;
-		}
+		//std::cout << "GRIP area: " << currentArea << std::endl;
+		//std::cout << "GRIP X: " << currentArea << std::endl;
+		//std::cout << "GRIP Y: " << centerY << std::endl;
 	}
 
 	void AutonomousInit() {
 		timer.Reset();
 		timer.Start();
 		shootServo.Set(0);
+		lightSwitch.Set(Relay::kOn);
+		SmartDashboard::PutBoolean("DB/LED 3", true);
 	}
 
 	void AutonomousPeriodic() {
-		//TODO: Add short, portcullis, drawbridge, cheval de frise, and sally port
 		std::string cTime = std::to_string(timer.Get());
 		SmartDashboard::PutString("DB/String 0", cTime);
-		lightSwitch.Set(Relay::kOn);
-
+		autoSelected = SmartDashboard::GetString("DB/String 9", "Auto Selection");
 		double currentTime = timer.Get();
 
 		if (autoSelected == "short") {
-			if(currentTime < 3){
-				myRobot.ArcadeDrive(0.5, 0, false); //Drive over defense
+			if(currentTime < 5){
+				myRobot.ArcadeDrive(-0.5, 0, false); //Drive over defense
 			} else {
 				myRobot.ArcadeDrive(0, 0, false);
 			}
 		} else if(autoSelected == "portcullis") {
+//			TODO: test
 			if(currentTime < 1.5){
-				myRobot.ArcadeDrive(0.5, 0, false); //drive up to defense
+				myRobot.ArcadeDrive(-0.5, 0, false); //drive up to defense
 			} else if(currentTime < 3){
-				//Put arm lifting code here //raises arm
+				armMotor.Set(1);
 			} else if(currentTime < 5){
-				myRobot.ArcadeDrive(0.5, 0, false); //drives under defense
+				myRobot.ArcadeDrive(-0.5, 0, false); //drives under defense
 			} else {
 				myRobot.ArcadeDrive(0, 0, false);
 			}
 		} else if(autoSelected == "drawbridge"){
+//			TODO: test
 			if(currentTime < 1.5){
-				myRobot.ArcadeDrive(0.5, 0, false); //drive up to defense
+				myRobot.ArcadeDrive(-0.5, 0, false); //drive up to defense
 			} else if(currentTime < 3){
 			//Put encoder move arm down //lowers arm
 			} else if(currentTime < 3.5){
-				myRobot.ArcadeDrive(-0.5, 0, false); //drives backward to lower door
+				myRobot.ArcadeDrive(0.5, 0, false); //drives backward to lower door
 			} else if(currentTime < 4){
 			//Move arm down further //lowers door under robot
 			} else if(currentTime < 6){
-				myRobot.ArcadeDrive(0.5, 0, false); //drives over defense
+				myRobot.ArcadeDrive(-0.5, 0, false); //drives over defense
 			} else {
-				myRobot.ArcadeDrive(0.5, 0, false);
+				myRobot.ArcadeDrive(-0.5, 0, false);
 			}
 		} else if(autoSelected == "cheval de frise"){
+//			TODO: test
 			if(currentTime < 1.5){
-				myRobot.ArcadeDrive(0.5, 0, false); //drives up to defense
+				myRobot.ArcadeDrive(-0.5, 0, false); //drives up to defense
 			} else if(currentTime < 3){
 			//Move shooter down //lowers shooter to make the defense passable
 			} else if(currentTime < 5){
-				myRobot.ArcadeDrive(0.5, 0, false); //drives over defense
+				myRobot.ArcadeDrive(-0.5, 0, false); //drives over defense
 			} else {
 				myRobot.ArcadeDrive(0, 0, false);
 			}
-		} else if(autoSelected == "sally port"){
-			if(currentTime < 1.5){
-				myRobot.ArcadeDrive(0.5, 0, false);
-			} else if(currentTime < 3){
-				//TODO: use sensor for getting in position
-			}
 		} else if(autoSelected == "mid"){
+//			TODO: test
 			//Need to be positioned on end of field
 			int ballNum = 6;
 			if(currentTime < 0.5){
-				myRobot.ArcadeDrive(0.5, 0, false); //rotate parallel to field
+				myRobot.ArcadeDrive(0, -0.5, false); //rotate parallel to field
 			} else if(currentTime < 3.5){
-				myRobot.ArcadeDrive(0.5, 0, false); //drive to end of field
+				myRobot.ArcadeDrive(-0.5, 0, false); //drive to end of field
 			} else if(currentTime < 4){
 				myRobot.ArcadeDrive(0, 0.5, false); //rotates facing enemy courtyard
 			} else if(currentTime < 4.5){
-				myRobot.ArcadeDrive(0.75, 0, false); //moves to be ahead of ball
+				myRobot.ArcadeDrive(-0.75, 0, false); //moves to be ahead of ball
 			} else if(currentTime < 5){
-				myRobot.ArcadeDrive(0.5, 0, false); //rotates parallel to field
+				myRobot.ArcadeDrive(-0.5, 0, false); //rotates parallel to field
 			}
 			for(int i = 0; i < ballNum; i++){
 				timer.Reset();
 				timer.Start();
 				if(currentTime < 0.5){
-					myRobot.ArcadeDrive(0.5, 0, false); //drive next to ball
+					myRobot.ArcadeDrive(-0.5, 0, false); //drive next to ball
 				} else if(currentTime < 1){
 					myRobot.ArcadeDrive(0, 0.5, false); //rotates to face ball
 				} else if(currentTime < 1.5){
-					myRobot.ArcadeDrive(0.5, 0, false); //hits ball towards our side
+					myRobot.ArcadeDrive(-0.5, 0, false); //hits ball towards our side
 				} else if(currentTime < 2){
-					myRobot.ArcadeDrive(-0.5, 0, false); //drives back
+					myRobot.ArcadeDrive(0.5, 0, false); //drives back
 				} else if(currentTime < 2.5){
 					myRobot.ArcadeDrive(0, -0.5, false); //rotates back
 				}
 			}
 		} else {
+			if (currentTime < 3) {
 			myRobot.ArcadeDrive(0, 0, false);
 			DriverStation::ReportError("You are a dirty skrub!");
+			}
 		}
 	}
 
 	void TeleopInit() {
+		double armMin = 0;
+		double armMax = 1000;
+		SmartDashboard::PutBoolean("DB/LED 3", false);
 	}
 
 	void TeleopPeriodic() {
@@ -253,15 +249,6 @@ private:
 			rightShootMotor.Set(-0.6);
 			leftShootMotor.Set(-0.6);
 		}
-
-//		Arm Code
-		if (armUpButton.Get() && (armDownButton.Get = 0)) {
-			armMotor.Set(1);
-		} else if (armDownButton.Get() && (armUpButton.Get = 0)) {
-			armMotor.Set(-1);
-		} else {
-			armMotor.Set(0);
-		}
 #else
 		//Setting up the axes
 		double rightTrigger = controller.GetRawAxis(SHOOTBALL);
@@ -272,7 +259,7 @@ private:
 
 #if DEBUG
 		std::string bDirection = std::to_string(moveDirection);
-		std::string bRotate = std::to_string(rotateAmount);
+		std::string bRotate = std::to_string(-rotateAmount);
 		std::string bShooter = std::to_string(shooterMovement);
 		std::string bArm = std::to_string(armMovement);
 		SmartDashboard::PutString("DB/String 0", ("Dir before: " + bDirection));
@@ -282,86 +269,119 @@ private:
 #endif
 
 		moveDirection = createDeadzone(moveDirection);
-		rotateAmount = createDeadzone(rotateAmount);
+		rotateAmount = createDeadzone(-rotateAmount);
 		shooterMovement = createDeadzone(shooterMovement);
 		armMovement = createDeadzone(armMovement);
 
 #if DEBUG
-		std::string aDirection = std::to_string(moveDirection);
+		std::string aDirection = std::to_string(shootServo.Get());
 		std::string aRotate = std::to_string(rotateAmount);
 		std::string aArm = std::to_string(armMovement);
-		SmartDashboard::PutString("DB/String 3", ("Dir after: " + aDirection));
+		SmartDashboard::PutString("DB/String 3", ("Servo: " + aDirection));
 		SmartDashboard::PutString("DB/String 4", ("Rot after: " + aRotate));
 		SmartDashboard::PutString("DB/String 5", ("Arm after: " + aArm));
 #endif
 
 		myRobot.ArcadeDrive(moveDirection, rotateAmount, false);
 
+//		Camera Light Code
+//		TODO: Get rid of shitty logic
+		if (lightsButton.Get() == 1) {
+			lightSwitch.Set(Relay::kOn);
+			SmartDashboard::PutBoolean("DB/LED 3", true);
+		} else {
+			lightSwitch.Set(Relay::kOff);
+			SmartDashboard::PutBoolean("DB/LED 3", false);
+		}
+
 //		Shooter Code
 		double shootState = controller.GetRawAxis(SHOOTBALL);
 		double pullState = controller.GetRawAxis(PULLBALL);
 //		Get shooter encoder angle
-		double shooterCount = shooterPos.Get();
 		double shooterDistance = shooterPos.GetDistance();
-		double shooterMin = 0;
+//		TODO: find max value
 		double shooterMax = 1000;
+//		TODO: uncomment once limit switch is installed, verify functionality
+/*		if (topReset.Get()) {
+			if(shooterMovement < 0) {
+				shooterMovement = 0;
+				DriverStation::ReportError("Warning! Shooter at breaking point!");
+			}
+			shooterPos.Reset();
+		} */
+		shooterAimMotor.Set(shooterMovement);
+//		//Auto aim and shoot
+		double distanceConstant = 500; //arbitrary
+//		TODO: camera testing
+		//double goalAngle = ;
+		//double aimValue = (length * distanceConstant * goalAngle);
+		/*if (autoAimButton.Get()) {
+			lightSwitch.Set(Relay::kOn);
+			double current = shooterPos.GetDistance();
+			if (current - 25 < aimValue) {
+				shooterAimMotor.Set(-1);
+			} else if (current - 5 < aimValue) {
+				shooterAimMotor.Set(-0.5);
+			} else if (current + 25 > aimValue) {
+				shooterAimMotor.Set(1);
+			} else if (current + 5 > aimValue) {
+				shooterAimMotor.Set(0.5);
+			} else {
+				SmartDashboard::PutBoolean("DB/LED 0", true);
+			}*/
+
+		std::string getDistance = std::to_string(shooterDistance);
+		std::string raw = std::to_string(rightShootMotor.GetRaw());
+		SmartDashboard::PutString("DB/String 6", ("Distance: " + getDistance));
+		SmartDashboard::PutString("DB/String 7", ("Get Raw: " + raw));
 
 //		Two trigger version
 		if (shootState > 0.5 && pullState < 0.5) {
-			rightShootMotor.Set(1);
-			leftShootMotor.Set(1);
-			shootServo.Set(100);
+			shootServo.Set(0);
+			if (SmartDashboard::GetBoolean("DB/LED 0", false)) {
+				DriverStation::ReportError("I'm still aiming for the stars");
+				rightShootMotor.Set(0);
+				leftShootMotor.Set(0);
+			} else {
+				rightShootMotor.Set(1);
+				//rightShootMotor.SetRaw(12);
+				leftShootMotor.Set(1);
+			}
 		} else if (shootState < 0.5 && pullState > 0.5) {
-			rightShootMotor.Set(-0.3);
-			leftShootMotor.Set(-0.3);
+			rightShootMotor.Set(-0.5);
+			leftShootMotor.Set(-0.5);
 		} else {
 			rightShootMotor.Set(0);
 			leftShootMotor.Set(0);
-			shootServo.Set(0);
+			shootServo.Set(100);
 		}
 
-//		Auto aim and shoot
-		double aimValue = 4; //arbitrary
-		if (autoAimButton.Get()) {
-			double current = shooterPos.GetDistance();
-			if ((current - 3 > aimValue) && (current > shooterMin)) {
-				shooterAimMotor.Set(-1);
-			} else if ((current + 3 < aimValue) && (current < shooterMax)) {
-				shooterAimMotor.Set(1);
-			} else {
-				shooterAimMotor.Set(0);
-			}
-		} else {
-			if (shooterMovement == 0) {
-				shooterAimMotor.Set(0);
-			} else {
-				shooterAimMotor.Set(shooterMovement);
-			}
-		}
+		//SmartDashboard::PutString("DB/String 8", area);
+		//SmartDashboard::PutString("DB/String 9", length);
+
+#endif
 
 //		Arm Code
-		double armCount = armPos.Get();
 		double armDistance = armPos.GetDistance();
-		double armMin = 0;
-		double armMax = 1000;
-
-		if (armMovement == 0) {
-			armMotor.Set(0);
-		} else {
-			armMotor.Set(armMovement);
-		}
-#endif
-		while(IsOperatorControl() && IsEnabled()) {
-			if (lightsButton.Get() == 1) {
-				lightSwitch.Set(Relay::kOn);
+		if (armUpButton.Get() && (armDownButton.Get() == 0)) {
+			if (armAccelButton.Get()) {
+				armMotor.Set(1);
 			} else {
-				lightSwitch.Set(Relay::kOff);
+				armMotor.Set(0.6);
 			}
+		} else if (armDownButton.Get() == 1 && (armUpButton.Get() == 0)) {
+			if (armAccelButton.Get()) {
+				armMotor.Set(-1);
+			} else {
+				armMotor.Set(-0.6);
+			}
+		} else {
+			armMotor.Set(0);
 		}
 	}
 
 	void TestPeriodic() {
-		lw->Run();
+
 	}
 
 	double createDeadzone(double amount, double deadzone = DEADZONE) {
