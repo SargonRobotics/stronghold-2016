@@ -26,7 +26,7 @@ class Robot: public IterativeRobot {
 	};
 
 	enum buttons {
-		GOALAIM = 3
+		LIGHTS = 2, ARMDOWN = 4, ARMUP = 5, GOALAIM = 7
 	};
 
 	enum axis {
@@ -37,29 +37,26 @@ class Robot: public IterativeRobot {
 
 	enum motors {
 		LEFTDRIVE = 0, RIGHTDRIVE = 1,
-		LEFTARM = 2, RIGHTARM = 3,
-		LEFTSHOOT = 4, RIGHTSHOOT = 5,
-		SHOOTERAIM = 6, SHOOTCONTROL = 7
+		LEFTSHOOT = 2, RIGHTSHOOT = 3,
+		SHOOTCONTROL = 7,
+		ARM = 8, SHOOTER = 9
 	};
 
 	enum limit_switches { //DIGITAL INPUT
-		MINARM = 0, MAXARM = 1, CHANNELA = 2, CHANNELB = 3,
+		SHOOTERCHANNELA = 0, SHOOTERCHANNELB = 1, TOPLIMIT = 4
 };
 
-	DigitalInput bottomSwitch;
-	DigitalInput topSwitch;
+	DigitalInput topReset;
 	RobotDrive myRobot; // robot drive system
 	Joystick controller; // only joystick
 	JoystickButton rollerButton;
 	JoystickButton autoAimButton;
-	Talon shooterAimMotor;
-	Encoder shooterAngle;
-	Talon rightShootMotor;
-	Talon leftShootMotor;
+	Victor shooterAimMotor;
+	Encoder shooterPos;
+	Victor rightShootMotor;
+	Victor leftShootMotor;
 	Servo shootServo;
-	//Arm
-	Talon leftArm;
-	Talon rightArm;
+
 public:
 
 	Robot():
@@ -67,15 +64,13 @@ public:
 			controller(MAINJOY),
 			rollerButton(&controller, SHOOTBALL),
 			autoAimButton(&controller, GOALAIM),
-			shooterAimMotor(SHOOTERAIM),
-			shooterAngle(CHANNELA, CHANNELB, false, Encoder::EncodingType::k4X),
-			bottomSwitch(MINARM),
-			topSwitch(MAXARM),
-			rightArm(RIGHTARM),
-			leftArm(LEFTARM)
+			shooterAimMotor(SHOOTER),
+			shooterPos(SHOOTERCHANNELA, SHOOTERCHANNELB, false, Encoder::EncodingType::k4X),
+			topReset(TOPLIMIT)
+
 	{
 		myRobot.SetExpiration(0.1);
-		shooterAngle.SetMinRate(10);
+		shooterPos.SetMinRate(10);
 		//myRobot.SetInvertedMotor()
 		//myRobot.SetInvertedMotor(LEFTDRIVE, true);
 	}
@@ -133,15 +128,8 @@ private:
 		double moveDirection = controller.GetRawAxis(MOVE);
 		double rotateAmount = controller.GetRawAxis(ROTATE);
 		double shooterMovement = controller.GetRawAxis(SHOOTDIRECTION);
-		double shootState = controller.GetRawAxis(SHOOTBALL);
-		double pullState = controller.GetRawAxis(PULLBALL);
 //		Get button
 		bool goalAim = controller.GetRawButton(GOALAIM);
-//		Get encoder angle
-		double count = shooterAngle.Get();
-		double distance = shooterAngle.GetDistance();
-
-
 
 #if DEBUG
 		std::string bDirection = std::to_string(moveDirection);
@@ -165,19 +153,68 @@ private:
 			leftShootMotor.Set(-0.6);
 		}
 #else
-		//Two trigger version
-		if (shootState > 0.5 && pullState < 0.5) {
-			rightShootMotor.Set(1);
-			leftShootMotor.Set(1);
-			shootServo.Set(100);
-		} else if (shootState < 0.5 && pullState > 0.5) {
-			rightShootMotor.Set(-0.3);
-			leftShootMotor.Set(-0.3);
-		} else {
-			rightShootMotor.Set(0);
-			leftShootMotor.Set(0);
-			shootServo.Set(0);
-		}
+
+		//		Shooter Code
+				double shootState = controller.GetRawAxis(SHOOTBALL);
+				double pullState = controller.GetRawAxis(PULLBALL);
+		//		Get shooter encoder angle
+				double shooterDistance = shooterPos.GetDistance();
+		//		TODO: find max value
+				double shooterMax = 1000;
+		//		TODO: uncomment once limit switch is installed, verify functionality
+		/*		if (topReset.Get()) {
+					if(shooterMovement < 0) {
+						shooterMovement = 0;
+						DriverStation::ReportError("Warning! Shooter at breaking point!");
+					}
+					shooterPos.Reset();
+				} */
+				shooterAimMotor.Set(shooterMovement);
+		//		//Auto aim and shoot
+				double distanceConstant = 500; //arbitrary
+		//		TODO: camera testing
+				//double goalAngle = ;
+				//double aimValue = (length * distanceConstant * goalAngle);
+				/*if (autoAimButton.Get()) {
+					lightSwitch.Set(Relay::kOn);
+					double current = shooterPos.GetDistance();
+					if (current - 25 < aimValue) {
+						shooterAimMotor.Set(-1);
+					} else if (current - 5 < aimValue) {
+						shooterAimMotor.Set(-0.5);
+					} else if (current + 25 > aimValue) {
+						shooterAimMotor.Set(1);
+					} else if (current + 5 > aimValue) {
+						shooterAimMotor.Set(0.5);
+					} else {
+						SmartDashboard::PutBoolean("DB/LED 0", true);
+					}*/
+
+				std::string getDistance = std::to_string(shooterDistance);
+				std::string raw = std::to_string(rightShootMotor.GetRaw());
+				SmartDashboard::PutString("DB/String 6", ("Distance: " + getDistance));
+				SmartDashboard::PutString("DB/String 7", ("Get Raw: " + raw));
+
+		//		Two trigger version
+				if (shootState > 0.5 && pullState < 0.5) {
+					shootServo.Set(0);
+					if (SmartDashboard::GetBoolean("DB/LED 0", false)) {
+						DriverStation::ReportError("I'm still aiming for the stars");
+						rightShootMotor.Set(0);
+						leftShootMotor.Set(0);
+					} else {
+						rightShootMotor.Set(1);
+						//rightShootMotor.SetRaw(12);
+						leftShootMotor.Set(1);
+					}
+				} else if (shootState < 0.5 && pullState > 0.5) {
+					rightShootMotor.Set(-0.5);
+					leftShootMotor.Set(-0.5);
+				} else {
+					rightShootMotor.Set(0);
+					leftShootMotor.Set(0);
+					shootServo.Set(100);
+				}
 #endif
 
 #if DEBUG
@@ -185,36 +222,13 @@ private:
 		std::string aRotate = std::to_string(rotateAmount);
 		std::string aArm = std::to_string(shooterMovement);
 		std::string motorSpeed = std::to_string(leftShootMotor.Get());
-		std::string printAngle = std::to_string(count);
 		SmartDashboard::PutString("DB/String 3", ("Dir after: " + aDirection));
 		SmartDashboard::PutString("DB/String 4", ("Rot after: " + aRotate));
 		SmartDashboard::PutString("DB/String 5", ("Arm after: " + aArm));
 		SmartDashboard::PutString("DB/String 7", ("Speed: " + motorSpeed));
-		SmartDashboard::PutString("DB/String 8", ("Angle: " + printAngle));
 #endif
 		myRobot.ArcadeDrive(moveDirection, rotateAmount, false);
 #endif
-
-		//Auto aim and shoot
-		double aimValue = 4; //arbitrary
-		if (goalAim == 1) {
-			double current = shooterAngle.GetDistance();
-			if (current - 3 > aimValue) {
-				shooterAimMotor.Set(-1);
-			} else if (current + 3 < aimValue) {
-				shooterAimMotor.Set(1);
-			} else {
-				shooterAimMotor.Set(0);
-			}
-		} else {
-			if (shooterMovement > 0.25) {
-				shooterAimMotor.Set(shooterMovement);
-			} else if (shooterMovement < -0.25) {
-				shooterAimMotor.Set(shooterMovement);
-			} else {
-				shooterAimMotor.Set(0);
-			}
-		}
 	}
 
 	void TestPeriodic() {
