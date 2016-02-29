@@ -30,16 +30,16 @@ class Robot: public IterativeRobot {
 	};
 
 	enum axis {  //CONTROLLER
-		SHOOTBALL = 3, ARMDIRECTION = 5, MOVE = 1, ROTATE = 0
+		SHOOTBALL = 3, SHOOTDIRECTION = 5, MOVE = 1, ROTATE = 0
 	};
 
 #endif
 
 	enum motors { //PWM
 		LEFTDRIVE = 0, RIGHTDRIVE = 1,
-		LEFTARM = 2, RIGHTARM = 3,
-		LEFTSHOOT = 4, RIGHTSHOOT = 5,
-		SHOOTSERVO = 7
+		LEFTSHOOT = 2, RIGHTSHOOT = 3,
+		SHOOTSERVO = 7,
+		ARM = 8, SHOOTER = 9
 	};
 
 	enum inputs {  //ANALOG INPUT
@@ -47,30 +47,29 @@ class Robot: public IterativeRobot {
 	};
 
 	enum digitalinputs { //DIGITAL INPUT
-			MINARM = 0, MAXARM = 1,
-			SHOOTERCHANNELA = 2, SHOOTERCHANNELB = 3,
-			ARMCHANNELA = 4, ARMCHANNELB = 5
+			SHOOTERCHANNELA = 0, SHOOTERCHANNELB = 1,
+			ARMCHANNELA = 2, ARMCHANNELB = 3,
+			TOPLIMIT = 4
 		};
 
-	AnalogPotentiometer rightArmPotInput;
-	AnalogPotentiometer leftArmPotInput;
-	DigitalInput bottomSwitch;
-	DigitalInput topSwitch;
+	enum relays {
+		LIGHTSWITCH = 3
+	};
+
+	DigitalInput topReset;
 	Encoder shooterPos;
 	Encoder armPos;
 	RobotDrive myRobot; // robot drive system
 	Joystick controller; // only joystick
 	JoystickButton rollerButton;
-	Talon leftShootMotor;
-	Talon rightShootMotor;
-	Talon rightArmPotMotor;
-	Talon leftArmPotMotor;
+	Victor leftShootMotor;
+	Victor rightShootMotor;
+	Victor armMotor;
+	Victor shooterAimMotor;
 	Servo shootServo;
 	Timer timer;
+	Relay lightSwitch;
 
-	const double pLeftGain = 0.405; //proportional speed constant
-	const double pRightGain = pLeftGain;
-	//TODO: Find right potentiometer's pGain
 public:
 
 	Robot() :
@@ -79,15 +78,13 @@ public:
 			rollerButton(&controller, SHOOTBALL),
 			leftShootMotor(LEFTSHOOT),
 			rightShootMotor(RIGHTSHOOT),
-			shooterPos(SHOOTERCHANNELA, SHOOTERCHANNELB, false, Encoder::EncodingType::k4X),
-			armPos(ARMCHANNELA, ARMCHANNELB, false, Encoder::EncodingType::k4X),			bottomSwitch(MINARM),
-			topSwitch(MAXARM),
-			rightArmPotInput(RIGHTPOTCHANNEL, 360, 10),
-			//TODO: Find offset. either 12 (full scale of linear motion) or 3600 (full scale of angular motion)
-			rightArmPotMotor(RIGHTARM),
-			leftArmPotInput(LEFTPOTCHANNEL, 360, 10),
-			leftArmPotMotor(LEFTARM),
+			shooterPos(SHOOTERCHANNELA, SHOOTERCHANNELB, true, Encoder::EncodingType::k4X),
+			armPos(ARMCHANNELA, ARMCHANNELB, false, Encoder::EncodingType::k4X),
+			shooterAimMotor(SHOOTER),
+			topReset(TOPLIMIT),
+			armMotor(ARM),
 			shootServo(SHOOTSERVO),
+			lightSwitch(LIGHTSWITCH),
 			timer()
 	{
 		myRobot.SetExpiration(0.1);
@@ -97,22 +94,8 @@ public:
 
 private:
 	LiveWindow *lw = LiveWindow::GetInstance();
-	SendableChooser *chooser;
-	const std::string autoNameDefault = "Default";
-	const std::string autoNameCustom = "My Auto";
-	const std::string autoShortDef = "Short/Drive Over Defenses";
-	const std::string autoPortcul = "Portcullis";
-	const std::string autoDraw = "Draw Bridge";
-	const std::string autoChevale = "Chevale de Frise";
-	const std::string autoSall = "Sally Port";
-	const std::string autoMid = "Move Balls to Our Side";
-	void* autoSelected;
 
 	void RobotInit() {
-		chooser = new SendableChooser();
-		chooser->AddDefault(autoNameDefault, (void*) &autoNameDefault);
-		chooser->AddObject(autoNameCustom, (void*) &autoNameCustom);
-		SmartDashboard::PutData("Auto Modes", chooser);
 		CameraServer::GetInstance()->SetQuality(50);
 		std::shared_ptr<USBCamera> camera(new USBCamera ("cam0" , true));
 		//camera->SetExposureManual(50);
@@ -121,263 +104,106 @@ private:
 		CameraServer::GetInstance()->StartAutomaticCapture("cam0");
 	}
 
-	/**
-	 * This autonomous (along with the chooser code above) shows how to select between different autonomous modes
-	 * using the dashboard. The sendable chooser code works with the Java SmartDashboard. If you prefer the LabVIEW
-	 * Dashboard, remove all of the chooser code and uncomment the GetString line to get the auto name from the text box
-	 * below the Gyro
-	 *
-	 * You can add additional auto modes by adding additional comparisons to the if-else structure below with additional strings.
-	 * If using the SendableChooser make sure to add them to the chooser code above as well.
-	 */
 	void AutonomousInit() {
-		autoSelected = chooser->GetSelected();
-		timer.Reset();
-		timer.Start();
-
-		shootServo.Set(0);
-		//move arm and shooter up
-
-		if (autoSelected == &autoNameCustom) {
-			//Custom Auto goes here
-		} else {
-			//Default Auto goes here
+			timer.Reset();
+			timer.Start();
+			shootServo.Set(0);
+			lightSwitch.Set(Relay::kOn);
+			SmartDashboard::PutBoolean("DB/LED 3", true);
 		}
-	}
 
-	void AutonomousPeriodic() {
-		std::string cTime = std::to_string(timer.Get());
-		SmartDashboard::PutString("DB/String 0", cTime);
+		void AutonomousPeriodic() {
+			std::string cTime = std::to_string(timer.Get());
+			SmartDashboard::PutString("DB/String 0", cTime);
+			std::string autoSelected = SmartDashboard::GetString("DB/String 9", "Auto Selection");
+			double currentTime = timer.Get();
 
-		double currentTime = timer.Get();
-
-		if (autoSelected == &autoNameDefault) { //Test
-			if(currentTime < 2) {
-				myRobot.ArcadeDrive(0, 0, false);
-			} else if(currentTime < 4) {
-				myRobot.ArcadeDrive(0.5, 0, false);
-			} else if(currentTime < 6){
-				myRobot.ArcadeDrive(1, 0, false);
-			} else {
-				myRobot.ArcadeDrive(0, 0, false);
-			}
-
-		} else if(autoSelected == &autoShortDef){
-			if(currentTime < 3){
-				myRobot.ArcadeDrive(0.5, 0, false); //Drive over defense
-			} else {
-				myRobot.ArcadeDrive(0, 0, false);
-			}
-
-		} else if(autoSelected == &autoPortcul){
-			if(currentTime < 1.5){
-				myRobot.ArcadeDrive(0.5, 0, false); //drive up to defense
-			} else if(currentTime < 3){
-				//Put arm lifting code here //raises arm
-			} else if(currentTime < 5){
-				myRobot.ArcadeDrive(0.5, 0, false); //drives under defense
-			} else {
-				myRobot.ArcadeDrive(0, 0, false);
-			}
-
-		} else if(autoSelected == &autoDraw){
-			if(currentTime < 1.5){
-				myRobot.ArcadeDrive(0.5, 0, false); //drive up to defense
-			} else if(currentTime < 3){
+			if (autoSelected == "short") {
+				if(currentTime < 5){
+					myRobot.ArcadeDrive(-0.5, 0, false); //Drive over defense
+				} else {
+					myRobot.ArcadeDrive(0, 0, false);
+				}
+			} else if(autoSelected == "portcullis") {
+	//			TODO: test
+				if(currentTime < 1.5){
+					myRobot.ArcadeDrive(-0.5, 0, false); //drive up to defense
+				} else if(currentTime < 3){
+					armMotor.Set(1);
+				} else if(currentTime < 5){
+					myRobot.ArcadeDrive(-0.5, 0, false); //drives under defense
+				} else {
+					myRobot.ArcadeDrive(0, 0, false);
+				}
+			} else if(autoSelected == "drawbridge"){
+	//			TODO: test
+				if(currentTime < 1.5){
+					myRobot.ArcadeDrive(-0.5, 0, false); //drive up to defense
+				} else if(currentTime < 3){
 				//Put encoder move arm down //lowers arm
-			} else if(currentTime < 3.5){
-				myRobot.ArcadeDrive(-0.5, 0, false); //drives backward to lower door
-			} else if(currentTime < 4){
+				} else if(currentTime < 3.5){
+					myRobot.ArcadeDrive(0.5, 0, false); //drives backward to lower door
+				} else if(currentTime < 4){
 				//Move arm down further //lowers door under robot
-			} else if(currentTime < 6){
-				myRobot.ArcadeDrive(0.5, 0, false); //drives over defense
-			} else {
-				myRobot.ArcadeDrive(0.5, 0, false);
-			}
-
-		} else if(autoSelected == &autoChevale){
-			if(currentTime < 1.5){
-				myRobot.ArcadeDrive(0.5, 0, false); //drives up to defense
-			} else if(currentTime < 3){
+				} else if(currentTime < 6){
+					myRobot.ArcadeDrive(-0.5, 0, false); //drives over defense
+				} else {
+					myRobot.ArcadeDrive(-0.5, 0, false);
+				}
+			} else if(autoSelected == "cheval de frise"){
+	//			TODO: test
+				if(currentTime < 1.5){
+					myRobot.ArcadeDrive(-0.5, 0, false); //drives up to defense
+				} else if(currentTime < 3){
 				//Move shooter down //lowers shooter to make the defense passable
-			} else if(currentTime < 5){
-				myRobot.ArcadeDrive(0.5, 0, false); //drives over defense
-			} else {
-				myRobot.ArcadeDrive(0, 0, false);
-			}
-
-		} else if(autoSelected == &autoSall){
-			if(currentTime < 1.5){
-				myRobot.ArcadeDrive(0.5, 0, false);
-			} else if(currentTime < 3){
-				//TODO: use sensor for getting in position
-			}
-		} else if(autoSelected == &autoMid){
-			//Need to be positioned on end of field
-
-			int ballNum = 6;
-
-			if(currentTime < 0.5){
-				myRobot.ArcadeDrive(0.5, 0, false); //rotate parallel to field
-			} else if(currentTime < 3.5){
-				myRobot.ArcadeDrive(0.5, 0, false); //drive to end of field
-			} else if(currentTime < 4){
-				myRobot.ArcadeDrive(0, 0.5, false); //rotates facing enemy courtyard
-			} else if(currentTime < 4.5){
-				myRobot.ArcadeDrive(0.75, 0, false); //moves to be ahead of ball
-			} else if(currentTime < 5){
-				myRobot.ArcadeDrive(0.5, 0, false); //rotates parallel to field
-			}
-
-			for(int i = 0; i < ballNum; i++){
-				timer.Reset();
-				timer.Start();
-
+				} else if(currentTime < 5){
+					myRobot.ArcadeDrive(-0.5, 0, false); //drives over defense
+				} else {
+					myRobot.ArcadeDrive(0, 0, false);
+				}
+			} else if(autoSelected == "mid"){
+	//			TODO: test
+				//Need to be positioned on end of field
+				int ballNum = 6;
 				if(currentTime < 0.5){
-					myRobot.ArcadeDrive(0.5, 0, false); //drive next to ball
-				} else if(currentTime < 1){
-					myRobot.ArcadeDrive(0, 0.5, false); //rotates to face ball
-				} else if(currentTime < 1.5){
-					myRobot.ArcadeDrive(0.5, 0, false); //hits ball towards our side
-				} else if(currentTime < 2){
-					myRobot.ArcadeDrive(-0.5, 0, false); //drives back
-				} else if(currentTime < 2.5){
-					myRobot.ArcadeDrive(0, -0.5, false); //rotates back
+					myRobot.ArcadeDrive(0, -0.5, false); //rotate parallel to field
+				} else if(currentTime < 3.5){
+					myRobot.ArcadeDrive(-0.5, 0, false); //drive to end of field
+				} else if(currentTime < 4){
+					myRobot.ArcadeDrive(0, 0.5, false); //rotates facing enemy courtyard
+				} else if(currentTime < 4.5){
+					myRobot.ArcadeDrive(-0.75, 0, false); //moves to be ahead of ball
+				} else if(currentTime < 5){
+					myRobot.ArcadeDrive(-0.5, 0, false); //rotates parallel to field
+				}
+				for(int i = 0; i < ballNum; i++){
+					timer.Reset();
+					timer.Start();
+					if(currentTime < 0.5){
+						myRobot.ArcadeDrive(-0.5, 0, false); //drive next to ball
+					} else if(currentTime < 1){
+						myRobot.ArcadeDrive(0, 0.5, false); //rotates to face ball
+					} else if(currentTime < 1.5){
+						myRobot.ArcadeDrive(-0.5, 0, false); //hits ball towards our side
+					} else if(currentTime < 2){
+						myRobot.ArcadeDrive(0.5, 0, false); //drives back
+					} else if(currentTime < 2.5){
+						myRobot.ArcadeDrive(0, -0.5, false); //rotates back
+					}
+				}
+			} else {
+				if (currentTime < 3) {
+				myRobot.ArcadeDrive(0, 0, false);
+				DriverStation::ReportError("You are a dirty skrub!");
 				}
 			}
-		} else {
-			myRobot.ArcadeDrive(0, 0, false);
 		}
-	}
 
 	void TeleopInit() {
 	}
 
 	void TeleopPeriodic() {
-#if JOYSTICK
-		//Driving
-		myRobot.ArcadeDrive(controller);
 
-		//Control for ball capture/shooting.
-		//		if (rollerButton.Get()){
-		//			leftRollerMotor.Set(1);
-		//			rightRollerMotor.Set(1);
-		//		}
-		//		else {
-		//			leftRollerMotor.Set(-1);
-		//			rightRollerMotor.Set(-1);
-		//		}
-
-#else
-		//Setting up the axes
-		double rightTrigger = controller.GetRawAxis(SHOOTBALL);
-		double rightStickY = controller.GetRawAxis(ARMDIRECTION);
-		double moveDirection = controller.GetRawAxis(MOVE);
-		double rotateAmount = controller.GetRawAxis(ROTATE);
-		double armMovement = controller.GetRawAxis(ARMDIRECTION);
-
-#if DEBUG
-		std::string bDirection = std::to_string(moveDirection);
-		std::string bRotate = std::to_string(rotateAmount);
-		std::string bArm = std::to_string(armMovement);
-		SmartDashboard::PutString("DB/String 0", ("Dir before: " + bDirection));
-		SmartDashboard::PutString("DB/String 1", ("Rot before: " + bRotate));
-		SmartDashboard::PutString("DB/String 2", ("Arm before: " + bArm));
-#endif
-
-		moveDirection = createDeadzone(moveDirection);
-		rotateAmount = createDeadzone(rotateAmount);
-		armMovement = createDeadzone(armMovement);
-
-		int index = 0;
-		double currentSetpoint; //holds desired setpoint
-		const int size = 4; //number of setpoints. ground, lowered portcullis, raised portcullis, max
-		const double setpoints[size] = {0.0, 0.5, 4.0, 4.5}; //setpoint locations
-		//TODO: Find upper three setpoints
-		currentSetpoint = setpoints[0]; //set to first setpoint
-
-//		double rCurrentPosition = rightArmPotInput.GetAverageVoltage(); //get position value
-//		motorSpeed = (currentPosition - currentSetpoint)*pGain; //convert position error to speed
-//		rightArmPotMotor.Set(motorSpeed); //drive elevator motor
-
-//		double lCurrentPosition = rightArmPotInput.GetAverageVoltage(); //get position value
-		//		motorSpeed = (currentPosition - currentSetpoint)*pGain; //convert position error to speed
-		//		rightArmPotMotor.Set(motorSpeed); //drive elevator motor
-
-		//TODO: See debug todo below.
-		//TODO: Test the input we get from arm potentiometers to make sense of them.
-		//TODO: Very cautiously give the motor an input and hope it doesn't break.
-		//TODO: Add error checking for if the position of the arms differs by too much.
-		//TODO: Add controls for moving the arms together.
-
-		double lCurrentPosition = leftArmPotInput.Get();
-		double rCurrentPosition = rightArmPotInput.Get();
-		std::string potStatement;
-		double armDifference = lCurrentPosition - rCurrentPosition; //accounts for difference in arm height
-
-		//Sets motor speeds based on armMovement axis
-		//If unequal. equalizes height of arm
-		if ((fabs(armMovement) > .2) && fabs(armDifference) < ARMERROR) { //operator moving and arm heights equal
-			//Left DART
-			double lmotorSpeed = (lCurrentPosition - currentSetpoint)*pLeftGain; //convert position error to speed
-			leftArmPotMotor.Set(lmotorSpeed);
-			//Right Dart
-			double rmotorSpeed = (rCurrentPosition - currentSetpoint)*pRightGain; //convert position error to speed
-			rightArmPotMotor.Set(rmotorSpeed);
-		} else if (fabs(armDifference) >= ARMERROR) { //operator moving and arm heights unequal
-			//Try to move arms back together.
-			currentSetpoint = (lCurrentPosition + rCurrentPosition) / 2;
-
-			//Left DART
-			double lmotorSpeed = (lCurrentPosition - currentSetpoint)*pLeftGain; //convert position error to speed
-			leftArmPotMotor.Set(lmotorSpeed);
-			//Right Dart
-			double rmotorSpeed = (rCurrentPosition - currentSetpoint)*pRightGain; //convert position error to speed
-			rightArmPotMotor.Set(rmotorSpeed);
-		} else { //Operator not moving and arm heights equal
-			//TODO: Find output to keep height
-			//Add buttons for arm height here
-			double lmotorSpeed = 0; //Left DART
-			leftArmPotMotor.Set(lmotorSpeed);
-			double rmotorSpeed = 0; //Right Dart
-			rightArmPotMotor.Set(rmotorSpeed);
-		}
-
-#if DEBUG
-		std::string aDirection = std::to_string(moveDirection);
-		std::string aRotate = std::to_string(rotateAmount);
-		std::string aArm = std::to_string(armMovement);
-		std::string aLeftPos = std::to_string(lCurrentPosition);
-		std::string aRightPos = std::to_string(rCurrentPosition);
-		SmartDashboard::PutString("DB/String 3", ("Dir after: " + aDirection));
-		SmartDashboard::PutString("DB/String 4", ("Rot after: " + aRotate));
-		SmartDashboard::PutString("DB/String 5", ("Arm after: " + aArm));
-		SmartDashboard::PutString("DB/String 6", ("ArmPot: " + aLeftPos));
-		SmartDashboard::PutString("DB/String 7", ("ArmPot: " + aRightPos));
-
-		//Tell user if potentiometer is off
-		double acceptableErrorLimit = 0.25;
-		if ((bottomSwitch.Get() == 0) && (lCurrentPosition > acceptableErrorLimit) && (rCurrentPosition > acceptableErrorLimit)) {
-			std::string potStatement = "BOTH "; //both pots off, left pot error printed first
-			SmartDashboard::PutString("DB/String 8", ("PotError " + potStatement +
-					aLeftPos + " " + aRightPos));
-		} else if ((bottomSwitch.Get() == 0) && (rCurrentPosition > acceptableErrorLimit)) {
-			std::string potStatement = "RIGHT "; //right pot off
-			SmartDashboard::PutString("DB/String 8 ", ("PotError " + potStatement +
-					aRightPos));
-		} else if ((bottomSwitch.Get() == 0) && (lCurrentPosition > acceptableErrorLimit)) {
-			std::string potStatement = "LEFT ";  //left pot off
-			SmartDashboard::PutString("DB/String 8", ("PotError " + potStatement +
-					aRightPos));
-		} else { //both pots accurate
-			std::string potStatement = "NONE";
-			SmartDashboard::PutString("DB/String 8", ("PotError " + potStatement));
-		}
-#endif
-
-		myRobot.ArcadeDrive(moveDirection, rotateAmount, false);
-
-#endif
 	}
 
 	void TestPeriodic() {
