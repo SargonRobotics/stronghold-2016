@@ -1,5 +1,8 @@
 #include "WPILib.h"
 #include <sstream>
+//#include <opencv2/core/core.hpp>
+//#include <opencv2/imgproc/imgproc.hpp>
+//#include <opencv2/highgui/highhui.hpp>
 
 #define ISJOYSTICK 0
 #define DEBUG 1
@@ -26,7 +29,7 @@ class Robot: public IterativeRobot {
 	};
 
 	enum buttons { //CONTROLLER
-		ARMACCEL = 1, LIGHTS = 2, GOALAIM = 7, ARMDOWN = 4, ARMUP = 5
+		ARMACCEL = 1, LIGHTS = 2, GOALAIM = 7, ARMDOWN = 6, ARMUP = 5
 	};
 
 	enum axis {  //CONTROLLER
@@ -97,7 +100,7 @@ public:
 			leftShootMotor(LEFTSHOOT),
 			rightShootMotor(RIGHTSHOOT),
 			shooterPos(SHOOTERCHANNELA, SHOOTERCHANNELB, true, Encoder::EncodingType::k4X),
-			armPos(ARMCHANNELA, ARMCHANNELB, false, Encoder::EncodingType::k4X),
+			armPos(ARMCHANNELA, ARMCHANNELB, true, Encoder::EncodingType::k4X),
 			shooterAimMotor(SHOOTER),
 			topReset(TOPLIMIT),
 			armMotor(ARM),
@@ -115,9 +118,12 @@ private:
 		CameraServer::GetInstance()->SetQuality(50);
 		std::shared_ptr<USBCamera> camera(new USBCamera ("cam0" , true));
 		//camera->SetExposureManual(50);
-		//camera->SetBrightness(50);
+		camera->SetBrightness(40);
 		//camera->SetWhiteBalanceManual(0);
 		CameraServer::GetInstance()->StartAutomaticCapture("cam0");
+		//cv::VideoCapture camera(0);
+		//cv::Mat image;
+		//char key;
 
 		//contourTable = NetworkTable::GetTable("GRIP/myContoursReport");
 		//linesTable = NetworkTable::GetTable("GRIP/myContoursReport");
@@ -150,45 +156,51 @@ private:
 		double currentTime = timer.Get();
 
 		if (autoSelected == "short") {
-			if(currentTime < 5){
-				myRobot.ArcadeDrive(-0.5, 0, false); //Drive over defense
+					if(currentTime < 4.5){
+						myRobot.ArcadeDrive(0.5, 0, false); //Drive over defense
+					} else {
+						myRobot.ArcadeDrive(0, 0, false);
+					}
+		} else if (autoSelected == "moat") {
+			if(currentTime < 5) {
+				myRobot.ArcadeDrive(0.35, 0, false); //Drive over defense
 			} else {
 				myRobot.ArcadeDrive(0, 0, false);
 			}
 		} else if(autoSelected == "portcullis") {
 //			TODO: test
 			if(currentTime < 1.5){
-				myRobot.ArcadeDrive(-0.5, 0, false); //drive up to defense
+				myRobot.ArcadeDrive(0.5, 0, false); //drive up to defense
 			} else if(currentTime < 3){
 				armMotor.Set(1);
 			} else if(currentTime < 5){
-				myRobot.ArcadeDrive(-0.5, 0, false); //drives under defense
+				myRobot.ArcadeDrive(0.5, 0, false); //drives under defense
 			} else {
 				myRobot.ArcadeDrive(0, 0, false);
 			}
 		} else if(autoSelected == "drawbridge"){
 //			TODO: test
 			if(currentTime < 1.5){
-				myRobot.ArcadeDrive(-0.5, 0, false); //drive up to defense
+				myRobot.ArcadeDrive(0.5, 0, false); //drive up to defense
 			} else if(currentTime < 3){
 			//Put encoder move arm down //lowers arm
 			} else if(currentTime < 3.5){
-				myRobot.ArcadeDrive(0.5, 0, false); //drives backward to lower door
+				myRobot.ArcadeDrive(-0.5, 0, false); //drives backward to lower door
 			} else if(currentTime < 4){
 			//Move arm down further //lowers door under robot
 			} else if(currentTime < 6){
-				myRobot.ArcadeDrive(-0.5, 0, false); //drives over defense
+				myRobot.ArcadeDrive(0.5, 0, false); //drives over defense
 			} else {
-				myRobot.ArcadeDrive(-0.5, 0, false);
+				myRobot.ArcadeDrive(0.5, 0, false);
 			}
 		} else if(autoSelected == "cheval de frise"){
 //			TODO: test
 			if(currentTime < 1.5){
-				myRobot.ArcadeDrive(-0.5, 0, false); //drives up to defense
+				myRobot.ArcadeDrive(0.5, 0, false); //drives up to defense
 			} else if(currentTime < 3){
 			//Move shooter down //lowers shooter to make the defense passable
 			} else if(currentTime < 5){
-				myRobot.ArcadeDrive(-0.5, 0, false); //drives over defense
+				myRobot.ArcadeDrive(0.5, 0, false); //drives over defense
 			} else {
 				myRobot.ArcadeDrive(0, 0, false);
 			}
@@ -199,25 +211,25 @@ private:
 			if(currentTime < 0.5){
 				myRobot.ArcadeDrive(0, -0.5, false); //rotate parallel to field
 			} else if(currentTime < 3.5){
-				myRobot.ArcadeDrive(-0.5, 0, false); //drive to end of field
+				myRobot.ArcadeDrive(0.5, 0, false); //drive to end of field
 			} else if(currentTime < 4){
 				myRobot.ArcadeDrive(0, 0.5, false); //rotates facing enemy courtyard
 			} else if(currentTime < 4.5){
 				myRobot.ArcadeDrive(-0.75, 0, false); //moves to be ahead of ball
 			} else if(currentTime < 5){
-				myRobot.ArcadeDrive(-0.5, 0, false); //rotates parallel to field
+				myRobot.ArcadeDrive(0.5, 0, false); //rotates parallel to field
 			}
 			for(int i = 0; i < ballNum; i++){
 				timer.Reset();
 				timer.Start();
 				if(currentTime < 0.5){
-					myRobot.ArcadeDrive(-0.5, 0, false); //drive next to ball
+					myRobot.ArcadeDrive(0.5, 0, false); //drive next to ball
 				} else if(currentTime < 1){
 					myRobot.ArcadeDrive(0, 0.5, false); //rotates to face ball
 				} else if(currentTime < 1.5){
-					myRobot.ArcadeDrive(-0.5, 0, false); //hits ball towards our side
+					myRobot.ArcadeDrive(0.5, 0, false); //hits ball towards our side
 				} else if(currentTime < 2){
-					myRobot.ArcadeDrive(0.5, 0, false); //drives back
+					myRobot.ArcadeDrive(-0.5, 0, false); //drives back
 				} else if(currentTime < 2.5){
 					myRobot.ArcadeDrive(0, -0.5, false); //rotates back
 				}
@@ -251,24 +263,12 @@ private:
 		}
 #else
 		//Setting up the axes
-		double rightTrigger = controller.GetRawAxis(SHOOTBALL);
 		double moveDirection = controller.GetRawAxis(MOVE);
 		double rotateAmount = controller.GetRawAxis(ROTATE);
 		double shooterMovement = controller.GetRawAxis(SHOOTDIRECTION);
 		double armMovement = controller.GetRawAxis(ARMDIRECTION);
 
-#if DEBUG
-		std::string bDirection = std::to_string(moveDirection);
-		std::string bRotate = std::to_string(-rotateAmount);
-		std::string bShooter = std::to_string(shooterMovement);
-		std::string bArm = std::to_string(armMovement);
-		SmartDashboard::PutString("DB/String 0", ("Dir before: " + bDirection));
-		SmartDashboard::PutString("DB/String 1", ("Rot before: " + bRotate));
-		SmartDashboard::PutString("DB/String 2", ("Shooter before: " + bShooter));
-		SmartDashboard::PutString("DB/String 3", ("Arm before: " + bArm));
-#endif
-
-		moveDirection = createDeadzone(moveDirection);
+		moveDirection = createDeadzone(-moveDirection);
 		rotateAmount = createDeadzone(-rotateAmount);
 		shooterMovement = createDeadzone(shooterMovement);
 		armMovement = createDeadzone(armMovement);
@@ -276,17 +276,15 @@ private:
 #if DEBUG
 		std::string aDirection = std::to_string(shootServo.Get());
 		std::string aRotate = std::to_string(rotateAmount);
-		std::string aArm = std::to_string(armMovement);
 		SmartDashboard::PutString("DB/String 3", ("Servo: " + aDirection));
 		SmartDashboard::PutString("DB/String 4", ("Rot after: " + aRotate));
-		SmartDashboard::PutString("DB/String 5", ("Arm after: " + aArm));
 #endif
 
 		myRobot.ArcadeDrive(moveDirection, rotateAmount, false);
 
 //		Camera Light Code
-//		TODO: Get rid of shitty logic
-		if (lightsButton.Get() == 1) {
+		bool lightLogic;
+		if (lightLogic == 1) {
 			lightSwitch.Set(Relay::kOn);
 			SmartDashboard::PutBoolean("DB/LED 3", true);
 		} else {
@@ -299,18 +297,33 @@ private:
 		double pullState = controller.GetRawAxis(PULLBALL);
 //		Get shooter encoder angle
 		double shooterDistance = shooterPos.GetDistance();
-//		TODO: find max value
-		double shooterMax = 1000;
-//		TODO: uncomment once limit switch is installed, verify functionality
-/*		if (topReset.Get()) {
+		double shooterMax = 3020;
+		double shooterMin = 0;
+		std::string shoot = std::to_string(shooterMovement);
+		SmartDashboard::PutString("DB/String 5", shoot);
+		if (topReset.Get()) {
+			if(shooterMovement > 0) {
+				shooterMovement = 0;
+				DriverStation::ReportError("Warning! Shooter at max point!");
+				shooterPos.Reset();
+			} else if (shooterMovement < 0) {
+				shooterAimMotor.Set(shooterMovement);
+			}
+		} else if (shooterDistance < 50) {
+			shooterAimMotor.Set(0.2 * shooterMovement);
+		} else if (shooterDistance > (shooterMax -50)) {
+			shooterAimMotor.Set(0.2 * shooterMovement);
+		} else if (shooterDistance > shooterMax) {
 			if(shooterMovement < 0) {
 				shooterMovement = 0;
-				DriverStation::ReportError("Warning! Shooter at breaking point!");
+				DriverStation::ReportError("Warning! Shooter at min point!");
+			} else if (shooterMovement > 0) {
+				shooterAimMotor.Set(shooterMovement);
 			}
-			shooterPos.Reset();
-		} */
-		shooterAimMotor.Set(shooterMovement);
-//		//Auto aim and shoot
+		} else {
+			shooterAimMotor.Set(shooterMovement);
+		}
+		//Auto aim and shoot
 		double distanceConstant = 500; //arbitrary
 //		TODO: camera testing
 		//double goalAngle = ;
@@ -331,10 +344,8 @@ private:
 			}*/
 
 		std::string getDistance = std::to_string(shooterDistance);
-		std::string raw = std::to_string(rightShootMotor.GetRaw());
 		SmartDashboard::PutString("DB/String 6", ("Distance: " + getDistance));
-		SmartDashboard::PutString("DB/String 7", ("Get Raw: " + raw));
-
+//		Intake and Shooting
 //		Two trigger version
 		if (shootState > 0.5 && pullState < 0.5) {
 			shootServo.Set(0);
@@ -342,14 +353,16 @@ private:
 				DriverStation::ReportError("I'm still aiming for the stars");
 				rightShootMotor.Set(0);
 				leftShootMotor.Set(0);
+				lightLogic = 0;
 			} else {
 				rightShootMotor.Set(1);
-				//rightShootMotor.SetRaw(12);
 				leftShootMotor.Set(1);
+
 			}
 		} else if (shootState < 0.5 && pullState > 0.5) {
 			rightShootMotor.Set(-0.5);
 			leftShootMotor.Set(-0.5);
+			lightLogic = 1;
 		} else {
 			rightShootMotor.Set(0);
 			leftShootMotor.Set(0);
@@ -362,8 +375,18 @@ private:
 #endif
 
 //		Arm Code
-		double armDistance = armPos.GetDistance();
-		if (armUpButton.Get() && (armDownButton.Get() == 0)) {
+		double armDistance = armPos.Get();
+		std::string getArm = std::to_string(armDistance);
+		SmartDashboard::PutString("DB/String 7", ("Distance: " + getArm));
+		double armMin = 1345;
+		double armMax = 0;
+		//if ((armDistance > armMin) && (armDistance < armMax)) {
+			//SmartDashboard::PutBoolean("DB/LED 4", true);
+		//} else {
+			//SmartDashboard::PutBoolean("DB/LED 4", false);
+			//DriverStation::ReportError("Outside of safe arm limits!");
+		//}
+		if (armUpButton.Get() == 1 && (armDownButton.Get() == 0)) {
 			if (armAccelButton.Get()) {
 				armMotor.Set(1);
 			} else {
