@@ -99,6 +99,7 @@ public:
 			armAccelButton(&controller, ARMACCEL),
 			leftShootMotor(LEFTSHOOT),
 			rightShootMotor(RIGHTSHOOT),
+			//TODO: FIND THE RIGHT SAMPLING RATE WITHIN TEN PERCENT
 			shooterPos(SHOOTERCHANNELA, SHOOTERCHANNELB, true, Encoder::EncodingType::k4X),
 			armPos(ARMCHANNELA, ARMCHANNELB, true, Encoder::EncodingType::k4X),
 			shooterAimMotor(SHOOTER),
@@ -154,6 +155,7 @@ private:
 		SmartDashboard::PutString("DB/String 0", cTime);
 		autoSelected = SmartDashboard::GetString("DB/String 9", "Auto Selection");
 		double currentTime = timer.Get();
+		double armDistance = armPos.Get();
 
 		if (autoSelected == "short") {
 					if(currentTime < 4.5){
@@ -169,10 +171,13 @@ private:
 			}
 		} else if(autoSelected == "portcullis") {
 //			TODO: test
+			double lowerArm = armPD(10, armDistance);
+			armMotor.Set(lowerArm);
 			if(currentTime < 1.5){
 				myRobot.ArcadeDrive(0.5, 0, false); //drive up to defense
-			} else if(currentTime < 3){
-				armMotor.Set(1);
+			} else if(currentTime < 3 && armDistance > 1330){
+				double raiseArm = armPD(1335, armDistance);
+				armMotor.Set(raiseArm);
 			} else if(currentTime < 5){
 				myRobot.ArcadeDrive(0.5, 0, false); //drives under defense
 			} else {
@@ -243,8 +248,6 @@ private:
 	}
 
 	void TeleopInit() {
-		double armMin = 0;
-		double armMax = 1000;
 		SmartDashboard::PutBoolean("DB/LED 3", false);
 	}
 
@@ -295,10 +298,19 @@ private:
 //		Shooter Code
 		double shootState = controller.GetRawAxis(SHOOTBALL);
 		double pullState = controller.GetRawAxis(PULLBALL);
-//		Get shooter encoder angle
-		double shooterDistance = shooterPos.GetDistance();
 		double shooterMax = 3020;
 		double shooterMin = 0;
+//		Get shooter encoder angle
+		double shooterDistance = shooterPos.GetDistance();
+//		Auto aim and shoot
+//		TODO: camera testing
+		/*double goalAngle = ;
+		double distanceConstant = ;
+		double aimValue = (length * distanceConstant * goalAngle);
+		if (autoAimButton.Get()) {
+			lightSwitch.Set(Relay::kOn);
+			shooterMovement = shooterPID(aimValue, shooterPos);
+		}*/
 		std::string shoot = std::to_string(shooterMovement);
 		SmartDashboard::PutString("DB/String 5", shoot);
 		if (topReset.Get()) {
@@ -323,25 +335,6 @@ private:
 		} else {
 			shooterAimMotor.Set(shooterMovement);
 		}
-		//Auto aim and shoot
-		double distanceConstant = 500; //arbitrary
-//		TODO: camera testing
-		//double goalAngle = ;
-		//double aimValue = (length * distanceConstant * goalAngle);
-		/*if (autoAimButton.Get()) {
-			lightSwitch.Set(Relay::kOn);
-			double current = shooterPos.GetDistance();
-			if (current - 25 < aimValue) {
-				shooterAimMotor.Set(-1);
-			} else if (current - 5 < aimValue) {
-				shooterAimMotor.Set(-0.5);
-			} else if (current + 25 > aimValue) {
-				shooterAimMotor.Set(1);
-			} else if (current + 5 > aimValue) {
-				shooterAimMotor.Set(0.5);
-			} else {
-				SmartDashboard::PutBoolean("DB/LED 0", true);
-			}*/
 
 		std::string getDistance = std::to_string(shooterDistance);
 		SmartDashboard::PutString("DB/String 6", ("Distance: " + getDistance));
@@ -380,12 +373,12 @@ private:
 		SmartDashboard::PutString("DB/String 7", ("Distance: " + getArm));
 		double armMin = 1345;
 		double armMax = 0;
-		//if ((armDistance > armMin) && (armDistance < armMax)) {
-			//SmartDashboard::PutBoolean("DB/LED 4", true);
-		//} else {
-			//SmartDashboard::PutBoolean("DB/LED 4", false);
-			//DriverStation::ReportError("Outside of safe arm limits!");
-		//}
+		if ((armDistance > armMin) && (armDistance < armMax)) {
+			SmartDashboard::PutBoolean("DB/LED 4", true);
+		} else {
+			SmartDashboard::PutBoolean("DB/LED 4", false);
+			DriverStation::ReportError("Outside of safe arm limits!");
+		}
 		if (armUpButton.Get() == 1 && (armDownButton.Get() == 0)) {
 			if (armAccelButton.Get()) {
 				armMotor.Set(1);
@@ -408,7 +401,7 @@ private:
 	}
 
 	double createDeadzone(double amount, double deadzone = DEADZONE) {
-		if (fabs(amount) < deadzone) {
+/*		if (fabs(amount) < deadzone) {
 			amount = 0;
 		} else {
 			if (amount < 0) {
@@ -417,8 +410,54 @@ private:
 				amount -= deadzone;
 			}
 			amount /= (1 - deadzone);
-		}
+		} */
+
+		amount = (fabs(amount) < deadzone) ? 0 : (amount = (amount < 0) ? amount += deadzone : amount -= deadzone);
 		return amount;
+	}
+	double shooterPID(int target, int current) {
+		//TODO: test values using the ziegler-nichols method. Safety of the bot first!
+		//since we want no overshoot, an over-damped algorithm is preferred. This produces a slower, smoother response.
+		//overdamp by setting KI to 1/2 value (estimate)
+		int pErr = target - current;
+		int prevErr = 0;
+		static int iErr = 0;
+		iErr += pErr;
+		int dErr = prevErr - pErr;
+		int pOut = 1 * pErr; //arbitrary gain. larger value increases oscillation
+		if (pOut < 5) {
+			pOut = 5;
+		} else if (pOut > 3015) {
+			pOut = 1340;
+		}
+		int iOut = 1500 * iErr; //arbitrary gain. sum of all errors, goal is to nullify steady state error
+		int dOut = .2 * dErr; //arbitrary gain. output decrease if  process variable is increasing rapidly
+		int output = pOut + iOut + dOut;
+		return output;
+		prevErr = pErr;
+
+	}
+	double armPD(int target, int current) {
+		//TODO: test values using the ziegler-nichols method. Safety of the bot first!
+		//since we want no overshoot, an over-damped algorithm is preferred. This produces a slower, smoother response.
+		//overdamp by setting KI to 1/2 value (estimate)
+		//PD takes less bandwidth  and speeds up system, since exact positioning is not as necessary
+		int pErr = target - current;
+		static int prevErr = 0;
+		static int dErr = 0;
+		dErr = prevErr - pErr;
+		int pervErr;
+		int pOut = 1 * pErr; //arbitrary gain. larger value increases oscillation
+		if (pOut < 5) {
+			pOut = 5;
+		} else if (pOut > 1340) {
+			pOut = 1340;
+		}
+		int dOut = .2 * dErr; //arbitrary gain. output decrease if  process variable is increasing rapidly
+		int output = pOut + dOut;
+		return output;
+		prevErr = pErr;
+
 	}
 };
 
