@@ -8,8 +8,10 @@
 #define DEBUG 1
 #define DEADZONE 0.25
 #define ARMERROR 0.1 //The max acceptable difference between the arms.
+#define PIDMODE 0
 
-class Robot: public IterativeRobot {
+class Robot: public IterativeRobot
+{
 #if ISJOYSTICK
 	enum joystick {
 		MAINJOY = 0
@@ -24,34 +26,40 @@ class Robot: public IterativeRobot {
 	};
 
 #else
-	enum joystick { //CONTROLLER
+	enum joystick
+	{
 		MAINJOY = 0
 	};
 
-	enum buttons { //CONTROLLER
+	enum buttons
+	{
 		ARMACCEL = 1, LIGHTS = 2, GOALAIM = 7, ARMDOWN = 6, ARMUP = 5
 	};
 
-	enum axis {  //CONTROLLER
+	enum axis
+	{
 		SHOOTBALL = 3, MOVE = 1, ROTATE = 0, PULLBALL = 2, SHOOTDIRECTION = 5, ARMDIRECTION = 5
 	};
 
 #endif
 
-	enum motors { //PWM
+	enum motors
+	{
 		LEFTDRIVE = 1, RIGHTDRIVE = 0,
-		LEFTSHOOT =2, RIGHTSHOOT = 3,
+		LEFTSHOOT = 2, RIGHTSHOOT = 3,
 		SHOOTSERVO = 7,
 		ARM = 8, SHOOTER = 9
 	};
 
-	enum digitalinputs { //DIGITAL INPUT
+	enum digitalinputs
+	{
 		SHOOTERCHANNELA = 0, SHOOTERCHANNELB = 1,
 		ARMCHANNELA = 2, ARMCHANNELB = 3,
-		TOPLIMIT = 4
+		TOPLIMIT = 4, LIMITSWITCH = 5
 	};
 
-	enum relays {
+	enum relays
+	{
 		LIGHTSWITCH = 3
 	};
 
@@ -68,8 +76,10 @@ class Robot: public IterativeRobot {
 	Victor shooterAimMotor;
 	Victor armMotor;
 	Servo shootServo;
+	DigitalInput limitSwitch;
 	Timer timer;
 	DigitalInput topReset;
+
 //  Camera
 	IMAQdxSession session;
 	Image *frame;
@@ -106,6 +116,7 @@ public:
 			topReset(TOPLIMIT),
 			armMotor(ARM),
 			shootServo(SHOOTSERVO),
+			limitSwitch(LIMITSWITCH),
 			lightSwitch(LIGHTSWITCH),
 			lightsButton(&controller, LIGHTS),
 			timer()
@@ -115,7 +126,8 @@ public:
 
 private:
 
-	void RobotInit() {
+	void RobotInit()
+	{
 		CameraServer::GetInstance()->SetQuality(50);
 		std::shared_ptr<USBCamera> camera(new USBCamera ("cam0" , true));
 		//camera->SetExposureManual(50);
@@ -142,7 +154,8 @@ private:
 		//std::cout << "GRIP Y: " << centerY << std::endl;
 	}
 
-	void AutonomousInit() {
+	void AutonomousInit()
+	{
 		timer.Reset();
 		timer.Start();
 		shootServo.Set(0);
@@ -150,108 +163,176 @@ private:
 		SmartDashboard::PutBoolean("DB/LED 3", true);
 	}
 
-	void AutonomousPeriodic() {
+	void AutonomousPeriodic()
+	{
 		std::string cTime = std::to_string(timer.Get());
 		SmartDashboard::PutString("DB/String 0", cTime);
 		autoSelected = SmartDashboard::GetString("DB/String 9", "Auto Selection");
 		double currentTime = timer.Get();
 		double armDistance = armPos.Get();
 
-		if (autoSelected == "short") {
-					if(currentTime < 4.5){
+		if (autoSelected == "short")
+		{
+					if(currentTime < 4.5)
+					{
 						myRobot.ArcadeDrive(0.5, 0, false); //Drive over defense
-					} else {
+					}
+					else
+					{
 						myRobot.ArcadeDrive(0, 0, false);
 					}
-		} else if (autoSelected == "moat") {
-			if(currentTime < 5) {
+		}
+		else if (autoSelected == "moat")
+		{
+			if(currentTime < 5)
+			{
 				myRobot.ArcadeDrive(0.35, 0, false); //Drive over defense
-			} else {
+			}
+			else
+			{
 				myRobot.ArcadeDrive(0, 0, false);
 			}
-		} else if(autoSelected == "portcullis") {
+		}
+		else if(autoSelected == "portcullis")
+		{
 //			TODO: test
-			double lowerArm = armPD(10, armDistance);
-			armMotor.Set(lowerArm);
-			if(currentTime < 1.5){
+			//double lowerArm = armPD(10, armDistance);
+			//armMotor.Set(lowerArm);
+
+			if(currentTime < 1.5)
+			{
 				myRobot.ArcadeDrive(0.5, 0, false); //drive up to defense
-			} else if(currentTime < 3 && armDistance > 1330){
-				double raiseArm = armPD(1335, armDistance);
-				armMotor.Set(raiseArm);
-			} else if(currentTime < 5){
+			}
+			else if(currentTime < 3 && armDistance > 1330)
+			{
+				//double raiseArm = armPD(1335, armDistance);
+				//armMotor.Set(raiseArm);
+			}
+			else if(currentTime < 5)
+			{
 				myRobot.ArcadeDrive(0.5, 0, false); //drives under defense
-			} else {
+			}
+			else
+			{
 				myRobot.ArcadeDrive(0, 0, false);
 			}
-		} else if(autoSelected == "drawbridge"){
+		}
+		else if(autoSelected == "drawbridge")
+		{
 //			TODO: test
-			if(currentTime < 1.5){
+			if(currentTime < 1.5)
+			{
 				myRobot.ArcadeDrive(0.5, 0, false); //drive up to defense
-			} else if(currentTime < 3){
+			}
+			else if(currentTime < 3){
 			//Put encoder move arm down //lowers arm
-			} else if(currentTime < 3.5){
+			}
+			else if(currentTime < 3.5)
+			{
 				myRobot.ArcadeDrive(-0.5, 0, false); //drives backward to lower door
-			} else if(currentTime < 4){
-			//Move arm down further //lowers door under robot
-			} else if(currentTime < 6){
+			}
+			else if(currentTime < 4)
+			{
+				//Move arm down further //lowers door under robot
+			}
+			else if(currentTime < 6)
+			{
 				myRobot.ArcadeDrive(0.5, 0, false); //drives over defense
-			} else {
+			}
+			else
+			{
 				myRobot.ArcadeDrive(0.5, 0, false);
 			}
-		} else if(autoSelected == "cheval de frise"){
+		}
+		else if(autoSelected == "cheval de frise")
+		{
 //			TODO: test
-			if(currentTime < 1.5){
+			if(currentTime < 1.5)
+			{
 				myRobot.ArcadeDrive(0.5, 0, false); //drives up to defense
-			} else if(currentTime < 3){
+			}
+			else if(currentTime < 3)
+			{
 			//Move shooter down //lowers shooter to make the defense passable
-			} else if(currentTime < 5){
+			}
+			else if(currentTime < 5)
+			{
 				myRobot.ArcadeDrive(0.5, 0, false); //drives over defense
-			} else {
+			}
+			else
+			{
 				myRobot.ArcadeDrive(0, 0, false);
 			}
-		} else if(autoSelected == "mid"){
+		}
+		else if(autoSelected == "mid")
+		{
 //			TODO: test
 			//Need to be positioned on end of field
 			int ballNum = 6;
-			if(currentTime < 0.5){
+			if(currentTime < 0.5)
+			{
 				myRobot.ArcadeDrive(0, -0.5, false); //rotate parallel to field
-			} else if(currentTime < 3.5){
+			}
+			else if(currentTime < 3.5)
+			{
 				myRobot.ArcadeDrive(0.5, 0, false); //drive to end of field
-			} else if(currentTime < 4){
+			}
+			else if(currentTime < 4)
+			{
 				myRobot.ArcadeDrive(0, 0.5, false); //rotates facing enemy courtyard
-			} else if(currentTime < 4.5){
+			}
+			else if(currentTime < 4.5)
+			{
 				myRobot.ArcadeDrive(-0.75, 0, false); //moves to be ahead of ball
-			} else if(currentTime < 5){
+			}
+			else if(currentTime < 5)
+			{
 				myRobot.ArcadeDrive(0.5, 0, false); //rotates parallel to field
 			}
-			for(int i = 0; i < ballNum; i++){
+			for(int i = 0; i < ballNum; i++)
+			{
 				timer.Reset();
 				timer.Start();
-				if(currentTime < 0.5){
+
+				if(currentTime < 0.5)
+				{
 					myRobot.ArcadeDrive(0.5, 0, false); //drive next to ball
-				} else if(currentTime < 1){
+				}
+				else if(currentTime < 1)
+				{
 					myRobot.ArcadeDrive(0, 0.5, false); //rotates to face ball
-				} else if(currentTime < 1.5){
+				}
+				else if(currentTime < 1.5)
+				{
 					myRobot.ArcadeDrive(0.5, 0, false); //hits ball towards our side
-				} else if(currentTime < 2){
+				}
+				else if(currentTime < 2)
+				{
 					myRobot.ArcadeDrive(-0.5, 0, false); //drives back
-				} else if(currentTime < 2.5){
+				}
+				else if(currentTime < 2.5)
+				{
 					myRobot.ArcadeDrive(0, -0.5, false); //rotates back
 				}
 			}
-		} else {
-			if (currentTime < 3) {
+		}
+		else
+		{
+			if (currentTime < 3)
+			{
 			myRobot.ArcadeDrive(0, 0, false);
 			DriverStation::ReportError("You are a dirty skrub!");
 			}
 		}
 	}
 
-	void TeleopInit() {
+	void TeleopInit()
+	{
 		SmartDashboard::PutBoolean("DB/LED 3", false);
 	}
 
-	void TeleopPeriodic() {
+	void TeleopPeriodic()
+	{
 #if JOYSTICK
 //		Driving
 		myRobot.ArcadeDrive(controller);
@@ -271,6 +352,14 @@ private:
 		double shooterMovement = controller.GetRawAxis(SHOOTDIRECTION);
 		double armMovement = controller.GetRawAxis(ARMDIRECTION);
 
+#if DEBUG
+		std::string bMove = std::to_string(moveDirection);
+		std::string aMove = std::to_string(createDeadzone(moveDirection));
+
+		SmartDashboard::PutString("DB/String 1", ("Move before: " + bMove));
+		SmartDashboard::PutString("DB/String 2", ("Move after: " + aMove));
+#endif
+
 		moveDirection = createDeadzone(-moveDirection);
 		rotateAmount = createDeadzone(-rotateAmount);
 		shooterMovement = createDeadzone(shooterMovement);
@@ -283,80 +372,58 @@ private:
 		SmartDashboard::PutString("DB/String 4", ("Rot after: " + aRotate));
 #endif
 
-		myRobot.ArcadeDrive(moveDirection, rotateAmount, false);
+		myRobot.ArcadeDrive(moveDirection, rotateAmount, false); //Makes the robot drive
 
-//		Camera Light Code
+/*		Camera Light Code
 		bool lightLogic;
-		if (lightLogic == 1) {
+		if (lightLogic == 1)
+		{
 			lightSwitch.Set(Relay::kOn);
 			SmartDashboard::PutBoolean("DB/LED 3", true);
 		} else {
 			lightSwitch.Set(Relay::kOff);
 			SmartDashboard::PutBoolean("DB/LED 3", false);
-		}
+		} //		Camera Light Code
+		bool lightLogic;
+		if (lightLogic == 1)
+		{
+			lightSwitch.Set(Relay::kOn);
+			SmartDashboard::PutBoolean("DB/LED 3", true);
+		} else {
+			lightSwitch.Set(Relay::kOff);
+			SmartDashboard::PutBoolean("DB/LED 3", false);
+		} */
 
 //		Shooter Code
 		double shootState = controller.GetRawAxis(SHOOTBALL);
 		double pullState = controller.GetRawAxis(PULLBALL);
 		double shooterMax = 3020;
 		double shooterMin = 0;
-//		Get shooter encoder angle
-		double shooterDistance = shooterPos.GetDistance();
-//		Auto aim and shoot
-//		TODO: camera testing
-		/*double goalAngle = ;
-		double distanceConstant = ;
-		double aimValue = (length * distanceConstant * goalAngle);
-		if (autoAimButton.Get()) {
-			lightSwitch.Set(Relay::kOn);
-			shooterMovement = shooterPID(aimValue, shooterPos);
-		}*/
-		std::string shoot = std::to_string(shooterMovement);
-		SmartDashboard::PutString("DB/String 5", shoot);
-		if (topReset.Get()) {
-			if(shooterMovement > 0) {
-				shooterMovement = 0;
-				DriverStation::ReportError("Warning! Shooter at max point!");
-				shooterPos.Reset();
-			} else if (shooterMovement < 0) {
-				shooterAimMotor.Set(shooterMovement);
-			}
-		} else if (shooterDistance < 50) {
-			shooterAimMotor.Set(0.2 * shooterMovement);
-		} else if (shooterDistance > (shooterMax -50)) {
-			shooterAimMotor.Set(0.2 * shooterMovement);
-		} else if (shooterDistance > shooterMax) {
-			if(shooterMovement < 0) {
-				shooterMovement = 0;
-				DriverStation::ReportError("Warning! Shooter at min point!");
-			} else if (shooterMovement > 0) {
-				shooterAimMotor.Set(shooterMovement);
-			}
-		} else {
-			shooterAimMotor.Set(shooterMovement);
-		}
 
-		std::string getDistance = std::to_string(shooterDistance);
-		SmartDashboard::PutString("DB/String 6", ("Distance: " + getDistance));
 //		Intake and Shooting
 //		Two trigger version
-		if (shootState > 0.5 && pullState < 0.5) {
-			shootServo.Set(0);
-			if (SmartDashboard::GetBoolean("DB/LED 0", false)) {
-				DriverStation::ReportError("I'm still aiming for the stars");
-				rightShootMotor.Set(0);
-				leftShootMotor.Set(0);
-				lightLogic = 0;
-			} else {
-				rightShootMotor.Set(1);
-				leftShootMotor.Set(1);
+		if (shootState > 0.5 && pullState < 0.5)
+		{
+			rightShootMotor.Set(1);
+			leftShootMotor.Set(1);
 
+			timer.Start();
+			timer.Reset();
+
+			if(timer.Get() == 0.5)
+			{
+				shootServo.Set(0);
+				timer.Stop();
 			}
-		} else if (shootState < 0.5 && pullState > 0.5) {
+
+		}
+		else if (shootState < 0.5 && pullState > 0.5)
+		{
 			rightShootMotor.Set(-0.5);
 			leftShootMotor.Set(-0.5);
-			lightLogic = 1;
-		} else {
+		}
+		else
+		{
 			rightShootMotor.Set(0);
 			leftShootMotor.Set(0);
 			shootServo.Set(100);
@@ -365,56 +432,90 @@ private:
 		//SmartDashboard::PutString("DB/String 8", area);
 		//SmartDashboard::PutString("DB/String 9", length);
 
+//		Moving Shooter Code
+		if(limitSwitch.Get() == 1)
+		{
+			shooterAimMotor.Set(shooterMovement);
+		}
+		else if(limitSwitch.Get() == 0 && shooterMovement < 0)
+		{
+			shooterAimMotor.Set(shooterMovement);
+		}
+		else if(limitSwitch.Get() == 0 && shooterMovement > 0)
+		{
+			DriverStation::ReportError("Trying to exceed limit switch");
+		}
+		else
+		{
+			shooterAimMotor.Set(0);
+		}
+
+#if DEBUG
+		std::string shooterValue = std::to_string(shooterMovement);
+		SmartDashboard::PutString("DB/String 5", ("Shooter: " + shooterValue));
+#endif
+
 #endif
 
 //		Arm Code
 		double armDistance = armPos.Get();
+
 		std::string getArm = std::to_string(armDistance);
-		SmartDashboard::PutString("DB/String 7", ("Distance: " + getArm));
+		SmartDashboard::PutString("DB/String 6", ("Distance: " + getArm));
+
 		double armMin = 1345;
 		double armMax = 0;
-		if ((armDistance > armMin) && (armDistance < armMax)) {
+
+		if ((armDistance > armMin) && (armDistance < armMax))
+		{
 			SmartDashboard::PutBoolean("DB/LED 4", true);
-		} else {
+		}
+		else
+		{
 			SmartDashboard::PutBoolean("DB/LED 4", false);
 			DriverStation::ReportError("Outside of safe arm limits!");
 		}
-		if (armUpButton.Get() == 1 && (armDownButton.Get() == 0)) {
-			if (armAccelButton.Get()) {
+		if (armUpButton.Get() == 1 && (armDownButton.Get() == 0))
+		{
+			if (armAccelButton.Get())
+			{
 				armMotor.Set(1);
-			} else {
+			}
+			else
+			{
 				armMotor.Set(0.6);
 			}
-		} else if (armDownButton.Get() == 1 && (armUpButton.Get() == 0)) {
-			if (armAccelButton.Get()) {
+		}
+		else if (armDownButton.Get() == 1 && (armUpButton.Get() == 0))
+		{
+			if (armAccelButton.Get())
+			{
 				armMotor.Set(-1);
-			} else {
+			}
+			else
+			{
 				armMotor.Set(-0.6);
 			}
-		} else {
+		}
+		else
+		{
 			armMotor.Set(0);
 		}
 	}
 
-	void TestPeriodic() {
+	void TestPeriodic()
+	{
 
 	}
 
-	double createDeadzone(double amount, double deadzone = DEADZONE) {
-/*		if (fabs(amount) < deadzone) {
-			amount = 0;
-		} else {
-			if (amount < 0) {
-				amount += deadzone;
-			} else {
-				amount -= deadzone;
-			}
-			amount /= (1 - deadzone);
-		} */
+	double createDeadzone(double amount, double deadzone = DEADZONE)
+	{
+		amount = (fabs(amount) <= deadzone) ? 0 : (amount = (amount < 0) ? amount += deadzone : amount -= deadzone);
 
-		amount = (fabs(amount) < deadzone) ? 0 : (amount = (amount < 0) ? amount += deadzone : amount -= deadzone);
-		return amount;
+		return ((0.6 - 0) / ((1 - deadzone) - 0) * (amount - 0));
 	}
+
+#if PIDMODE
 	double shooterPID(int target, int current) {
 		//TODO: test values using the ziegler-nichols method. Safety of the bot first!
 		//since we want no overshoot, an over-damped algorithm is preferred. This produces a slower, smoother response.
@@ -459,6 +560,8 @@ private:
 		prevErr = pErr;
 
 	}
+
+#endif
 };
 
 START_ROBOT_CLASS(Robot)
