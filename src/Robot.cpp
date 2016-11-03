@@ -55,7 +55,7 @@ class Robot: public IterativeRobot
 	{
 		SHOOTERCHANNELA = 0, SHOOTERCHANNELB = 1,
 		ARMCHANNELA = 2, ARMCHANNELB = 3,
-		TOPLIMIT = 4, LIMITSWITCH = 5
+		TOPLIMIT = 4
 	};
 
 	enum relays
@@ -116,7 +116,7 @@ public:
 			topReset(TOPLIMIT),
 			armMotor(ARM),
 			shootServo(SHOOTSERVO),
-			limitSwitch(LIMITSWITCH),
+			limitSwitch(TOPLIMIT),
 			lightSwitch(LIGHTSWITCH),
 			lightsButton(&controller, LIGHTS),
 			timer()
@@ -125,14 +125,15 @@ public:
 	}
 
 private:
+	LiveWindow *lw = LiveWindow::GetInstance();
 
 	void RobotInit()
 	{
 		CameraServer::GetInstance()->SetQuality(50);
 		std::shared_ptr<USBCamera> camera(new USBCamera ("cam0" , true));
-		//camera->SetExposureManual(50);
-		camera->SetBrightness(40);
-		//camera->SetWhiteBalanceManual(0);
+		camera->SetExposureManual(0);
+		camera->SetBrightness(0);
+		camera->SetWhiteBalanceManual(0);
 		CameraServer::GetInstance()->StartAutomaticCapture("cam0");
 		//cv::VideoCapture camera(0);
 		//cv::Mat image;
@@ -354,16 +355,16 @@ private:
 
 #if DEBUG
 		std::string bMove = std::to_string(moveDirection);
-		std::string aMove = std::to_string(createDeadzone(moveDirection));
+		std::string aMove = std::to_string(createDeadzone(moveDirection, 0.6));
 
 		SmartDashboard::PutString("DB/String 1", ("Move before: " + bMove));
 		SmartDashboard::PutString("DB/String 2", ("Move after: " + aMove));
 #endif
 
-		moveDirection = createDeadzone(-moveDirection);
-		rotateAmount = createDeadzone(-rotateAmount);
-		shooterMovement = createDeadzone(shooterMovement);
-		armMovement = createDeadzone(armMovement);
+		moveDirection = createDeadzone(-moveDirection, 0.95);
+		rotateAmount = createDeadzone(-rotateAmount, 0.5);
+		shooterMovement = createDeadzone(-shooterMovement, 1);
+		armMovement = createDeadzone(armMovement, 1);
 
 #if DEBUG
 		std::string aDirection = std::to_string(shootServo.Get());
@@ -404,13 +405,17 @@ private:
 //		Two trigger version
 		if (shootState > 0.5 && pullState < 0.5)
 		{
-			rightShootMotor.Set(1);
-			leftShootMotor.Set(1);
+			rightShootMotor.Set(0.6);
+			leftShootMotor.Set(0.6);
 
 			timer.Start();
-			timer.Reset();
 
-			if(timer.Get() == 0.5)
+#if DEBUG
+				std::string timerVal = std::to_string(timer.Get());
+				SmartDashboard::PutString("DB/String 8", ("Timer: " + timerVal));
+#endif
+
+			if(timer.Get() > 0.5)
 			{
 				shootServo.Set(0);
 				timer.Stop();
@@ -427,21 +432,23 @@ private:
 			rightShootMotor.Set(0);
 			leftShootMotor.Set(0);
 			shootServo.Set(100);
+
+			timer.Reset();
 		}
 
 		//SmartDashboard::PutString("DB/String 8", area);
 		//SmartDashboard::PutString("DB/String 9", length);
 
 //		Moving Shooter Code
-		if(limitSwitch.Get() == 1)
+		if(limitSwitch.Get() == 0)
 		{
 			shooterAimMotor.Set(shooterMovement);
 		}
-		else if(limitSwitch.Get() == 0 && shooterMovement < 0)
+		else if(limitSwitch.Get() == 1 && shooterMovement < 0)
 		{
 			shooterAimMotor.Set(shooterMovement);
 		}
-		else if(limitSwitch.Get() == 0 && shooterMovement > 0)
+		else if(limitSwitch.Get() == 1 && shooterMovement > 0)
 		{
 			DriverStation::ReportError("Trying to exceed limit switch");
 		}
@@ -452,7 +459,9 @@ private:
 
 #if DEBUG
 		std::string shooterValue = std::to_string(shooterMovement);
+		std::string limitval = std::to_string(limitSwitch.Get());
 		SmartDashboard::PutString("DB/String 5", ("Shooter: " + shooterValue));
+		SmartDashboard::PutString("DB/String 7", ("Limit: " + limitval));
 #endif
 
 #endif
@@ -463,8 +472,8 @@ private:
 		std::string getArm = std::to_string(armDistance);
 		SmartDashboard::PutString("DB/String 6", ("Distance: " + getArm));
 
-		double armMin = 1345;
-		double armMax = 0;
+		double armMin = 0;
+		double armMax = 1345;
 
 		if ((armDistance > armMin) && (armDistance < armMax))
 		{
@@ -473,7 +482,7 @@ private:
 		else
 		{
 			SmartDashboard::PutBoolean("DB/LED 4", false);
-			DriverStation::ReportError("Outside of safe arm limits!");
+			//DriverStation::ReportError("Outside of safe arm limits!");
 		}
 		if (armUpButton.Get() == 1 && (armDownButton.Get() == 0))
 		{
@@ -508,11 +517,11 @@ private:
 
 	}
 
-	double createDeadzone(double amount, double deadzone = DEADZONE)
+	double createDeadzone(double amount, double max, double deadzone = DEADZONE)
 	{
 		amount = (fabs(amount) <= deadzone) ? 0 : (amount = (amount < 0) ? amount += deadzone : amount -= deadzone);
 
-		return ((0.6 - 0) / ((1 - deadzone) - 0) * (amount - 0));
+		return ((max - 0) / ((1 - deadzone) - 0) * (amount - 0));
 	}
 
 #if PIDMODE
